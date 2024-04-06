@@ -1,0 +1,34 @@
+[
+    [
+        {
+            "name": "NonRP Drive",
+            "time": 20,
+            "reason": "6.2 правил проекта",
+            "type": "prison"
+        },
+        {
+            "name": "Drive By",
+            "time": "40",
+            "reason": "6.3 правил проекта",
+            "type": "prison"
+        },
+        {
+            "name": "PG",
+            "time": "40",
+            "reason": "6.7 правил проекта",
+            "type": "prison"
+        },
+        {
+            "name": "Разговор в ноке",
+            "time": "40",
+            "reason": "Разговор в тяжёлом состоянии",
+            "type": "mute"
+        },
+        {
+            "name": "Музыка в ЗЗ",
+            "time": "40",
+            "reason": "Музыка в ЗЗ",
+            "type": "mute"
+        }
+    ]
+]
