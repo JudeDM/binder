@@ -1,4 +1,19 @@
 {
-    "hash": "51a89d8cd9b260a8bab1fb9cbf5d250d",
-    "last_updated": "1712351398"
+	"hashes": {
+		"binder.exe": "51a89d8cd9b260a8bab1fb9cbf5d250d",
+		"data/icons/about.svg": "5adb41862f73852ead45b79715bcf891",
+		"data/icons/arrow_down.svg": "4e9eaa7e61a6153562951ce9d2ac986a",
+		"data/icons/arrow_up.svg": "9cc12fe279edda63f52c99d8e89d1b21",
+		"data/icons/delete.svg": "0167535645d16da81773db46b9e1e45f",
+		"data/icons/discord.svg": "f4df36ab76d3728ad345488386830267",
+		"data/icons/github.svg": "edf818ee91a636554d69783c62090afc",
+		"data/icons/minimize.svg": "1aa6e2426cde1160905f3debdd5f24ab",
+		"data/icons/update.svg": "1aa6e2426cde1160905f3debdd5f24ab"
+	},
+	"files": [
+		"data/configs/button_config.json",
+		"data/configs/house_info.json",
+		"data/configs/violation_config.json"
+	],
+	"last_updated": "1712351398"
 }
