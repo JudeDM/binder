@@ -795,7 +795,7 @@ class AboutWindow(QWidget):
 
 
     def open_github(self):
-        webbrowser_open("https://github.com/JudeDM/judedm.github.io")
+        webbrowser_open("https://github.com/JudeDM/binder/tree/main")
 
 
     def open_discord(self):
