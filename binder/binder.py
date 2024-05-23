@@ -1,4 +1,3 @@
-# Импорты
 import sys
 import os
 from enum import Enum
@@ -14,22 +13,39 @@ from PyQt6.QtGui import QIcon, QPalette, QColor
 from webbrowser import open as webbrowser_open
 from keyboard import add_hotkey, send
 import pyperclip
+import threading
 
-from ctypes import Structure, windll, pointer, cast, c_void_p, c_ulong
+from ctypes import Structure, windll, pointer, cast, c_void_p, c_ulong, c_bool, c_int, WINFUNCTYPE, c_uint32, create_unicode_buffer, byref, wintypes
 from json import dump as json_dump, load as json_load
 
 
-# pylint: disable=C0115, C0116, C0301
-
-# Файлы и константы
 __location__ = os.getcwd()
 binder = None
 mouse = None
+
+user32 = windll.user32
+EnumWindows = windll.user32.EnumWindows
+EnumWindowsProc = WINFUNCTYPE(c_bool, c_int, c_int)
+GetWindowThreadProcessId = user32.GetWindowThreadProcessId
+GetWindowRect = windll.user32.GetWindowRect
+OpenProcess = windll.kernel32.OpenProcess
+CloseHandle = windll.kernel32.CloseHandle
+GetWindowLong = user32.GetWindowLongW
+GetWindowLong.restype = wintypes.LONG
+GetWindowLong.argtypes = [wintypes.HWND, c_int]
+
+
+
+PROCESS_QUERY_INFORMATION = 0x0400
+PROCESS_VM_READ = 0x0010
+GWL_STYLE = -16
+WS_BORDER = 0x00800000
+WS_CAPTION = 0x00C00000
+GW_HWNDNEXT = 2
 MAX_COLS = 1
-WINDOW_GEOMETRY = ()
-
+WINDOW_WIDTH, WINDOW_HEIGHT = 0, 0
+LEFT, TOP, RIGHT, BOTTOM = 0, 0, 0, 0
 DATE_FORMAT = "%d.%m.%Y"
-
 UPDATE_FILE = 'Update.exe'
 SECRET_FILE = 'data/configs/secret.json'
 BUTTON_HOUSE_CONFIG_FILE = 'data/configs/house_info.json'
@@ -1207,7 +1223,7 @@ class HouseSettingsWindow(SettingsWindow):
 class Binder(QWidget):
     def __init__(self):
         super().__init__()
-        self.setGeometry(*WINDOW_GEOMETRY)
+        self.setFixedSize(WINDOW_WIDTH-1000, 400)
         self.setWindowFlags(Qt.WindowType.FramelessWindowHint | Qt.WindowType.WindowStaysOnTopHint)
         self.setAttribute(Qt.WidgetAttribute.WA_TranslucentBackground, True)
         self.setAttribute(Qt.WidgetAttribute.WA_DeleteOnClose)
@@ -1215,7 +1231,7 @@ class Binder(QWidget):
         self.is_violation_ui, self.is_report_ui, self.is_teleport_ui, self.is_additional_ui = False, False, False, False
         self.init_ui()
         timer = QTimer(self, timeout=self.update_buttons)
-        timer.start(50)
+        timer.start(100)
 
 
     def init_violations_ui(self):
@@ -1225,6 +1241,8 @@ class Binder(QWidget):
         self.violation_buttons_layout.setVerticalSpacing(5)
         violation_config = load_violation_button_config()
         for col, col_config in enumerate(violation_config):
+            if col >= MAX_COLS:
+                continue
             for row, button_config in enumerate(col_config):
                 button_number = row * len(violation_config) + col + 1
                 button = create_button(on_click_handler=self.handle_punish_button_click, text=button_config['name'], style=admin_button_stylesheet())
@@ -1240,6 +1258,8 @@ class Binder(QWidget):
         self.report_buttons_layout.setVerticalSpacing(5)
         button_configs = load_report_button_config()
         for col, col_config in enumerate(button_configs):
+            if col >= MAX_COLS:
+                continue
             for row, button_config in enumerate(col_config):
                 button_number = row * len(button_configs) + col + 1
                 button = create_button(on_click_handler=self.handle_report_button_click, text=button_config['name'], style=admin_button_stylesheet())
@@ -1259,6 +1279,8 @@ class Binder(QWidget):
             return lambda: self.teleport_to_house(name)
 
         for col, col_config in enumerate(house_button_configs):
+            if col >= MAX_COLS:
+                continue
             for row, house_button_config in enumerate(col_config):
                 button_number = row * len(house_button_configs) + col + 1
                 name = house_button_config['name']
@@ -1359,10 +1381,11 @@ class Binder(QWidget):
 
     def handle_report_button_click(self, text_to_copy=None):
         text_to_copy = text_to_copy or next(text for button, text in self.buttons.values() if button is self.sender())
-
         position = mouse.get_position()
-        # mouse.click((245, 345)) для 1 апреля
-        mouse.click((245, 330))
+        now = datetime.now()
+        start_date = datetime(now.year, 4, 1, 7)
+        end_date = datetime(now.year, 4, 2, 7)
+        mouse.click((LEFT+245, (TOP+345 if start_date <= now < end_date else TOP+330)))
         pyperclip.copy(text_to_copy)
         send('ctrl+v')
         send('enter')
@@ -1381,14 +1404,14 @@ class Binder(QWidget):
     def handle_sync_button_click(self):
         position = mouse.get_position()
         paste_to_console(f"dimension_sync {load_secret_config().get('id', '')}")
-        mouse.click((185, 365))
+        mouse.click((LEFT+185, TOP+365))
         mouse.move(position)
 
 
     def handle_reof_button_click(self):
         position = mouse.get_position()
         paste_to_console("reof")
-        mouse.click((185, 365))
+        mouse.click((LEFT+185, TOP+365))
         mouse.move(position)
 
 
@@ -1436,13 +1459,13 @@ class Binder(QWidget):
 
 
     def update_buttons(self):
+        if self.x() != LEFT+1000 or self.y() != TOP+4:
+            self.setFixedSize(WINDOW_WIDTH-1000, 400)
+            self.move(LEFT+1000, TOP+4)
         is_console_open = all(is_within_range(get_pixel_color(*coord), color) for coord, color in pixel_conditions["should_show_violation_buttons"].items())
         is_report_open = all(is_within_range(get_pixel_color(*coord), color) for coord, color in pixel_conditions["should_show_buttons"].items())
         is_teleport_open = all(is_within_range(get_pixel_color(*coord), color) for coord, color in pixel_conditions["should_show_teleport_buttons"].items())
         is_panel_open = all(is_within_range(get_pixel_color(*coord), color) for coord, color in pixel_conditions["should_show_control_buttons"].items())
-
-        # for coord, color in pixel_conditions["should_show_buttons"].items():
-        #     print(f"Координаты: {coord} Цвет: {get_pixel_color(*coord)} Необходимый цвет: {color}")
 
         if is_console_open and not self.is_violation_ui:
             self.is_violation_ui = True
@@ -1488,7 +1511,6 @@ class Binder(QWidget):
         save_click_data(click_data)
         self.update_report_labels()
 
-
 def create_control_layout(instance):
     control_buttons_style = f"width: 40px; background-color: {BACKGROUND_COLOR}; border: none;"
 
@@ -1500,7 +1522,6 @@ def create_control_layout(instance):
     control_layout.addWidget(close_button)
     control_layout.setAlignment(Qt.AlignmentFlag.AlignRight)
     return control_layout
-
 
 def create_line(text=None, style=None):
     """
@@ -1520,7 +1541,6 @@ def create_line(text=None, style=None):
         line.setStyleSheet(style)
     return line
 
-
 def create_label(text=None, style=None):
     """
     Create a QLabel with specified properties.
@@ -1538,7 +1558,6 @@ def create_label(text=None, style=None):
     if style:
         label.setStyleSheet(style)
     return label
-
 
 def create_button(on_click_handler=None, text=None, icon_name=None, style=None):
     """
@@ -1570,9 +1589,9 @@ def is_within_range(color1: tuple, color2: tuple, tolerance=5) -> bool:
 
 
 def paste_to_console(text: str):
-    mouse.click((55, 375))
+    mouse.click((LEFT+55, TOP+375))
     sleep(0.1)
-    mouse.click((500, 335))
+    mouse.click((LEFT+500, TOP+335))
     send('ctrl+a, backspace')
     pyperclip.copy(text)
     send('ctrl+v')
@@ -1653,9 +1672,9 @@ def save_house_button_config(data):
 
 
 def get_pixel_color(x: int, y: int) -> tuple:
-    hdc = windll.user32.GetDC(0)
-    pixel = windll.gdi32.GetPixel(hdc, x, y)
-    windll.user32.ReleaseDC(0, hdc)
+    hdc = user32.GetDC(0)
+    pixel = windll.gdi32.GetPixel(hdc, x + LEFT, y + TOP)
+    user32.ReleaseDC(0, hdc)
 
     red = pixel & 0xFF
     green = (pixel >> 8) & 0xFF
@@ -1665,13 +1684,112 @@ def get_pixel_color(x: int, y: int) -> tuple:
 
 
 def get_monitor_coordinates():
-    user32 = windll.user32
     return user32.GetSystemMetrics(0), user32.GetSystemMetrics(1)
 
 
 def change_to_english_layout(layout_id=0x04090409):
-    window_handle = windll.user32.GetForegroundWindow()
-    windll.user32.SendMessageW(window_handle, 0x0050, 0, cast(layout_id, c_void_p))
+    window_handle = user32.GetForegroundWindow()
+    user32.SendMessageW(window_handle, 0x0050, 0, cast(layout_id, c_void_p))
+
+
+def get_process(process_name: str) -> tuple[int, int] | None:
+    """
+    Get the window handle and process ID of the first window with the given process name.
+
+    Args:
+        process_name (str): The name of the process.
+
+    Returns:
+        tuple[int, int] | None: A tuple containing the window handle (int) and process ID (int) of the first matching window,
+            or None if no matching window is found.
+    """
+    return next(((hwnd, pid) for hwnd, pid in get_process_handles() if process_name == get_process_name(pid)), None)
+
+def get_process_handles() -> list[tuple[int, int]]:
+    """
+    Get handles of all windows and their corresponding process IDs.
+
+    Returns:
+        list[tuple[int, int]]: A list of tuples, where each tuple contains a window handle
+            (int) and the process ID (int) of the window.
+    """
+    handles = []
+    try:
+        def enum_windows_callback(hwnd: int, _: int) -> bool:
+            process_id = c_ulong()
+            result = user32.GetWindowThreadProcessId(hwnd, byref(process_id))
+            if result is not None:
+                handles.append((hwnd, process_id.value))
+            return True
+
+        EnumWindows(EnumWindowsProc(enum_windows_callback), 0)
+    except Exception:
+        handles = []
+    return handles
+
+def get_window_coordinates(hwnd: int) -> tuple[int, int, int, int] | None:
+    """
+    Get the window coordinates of the given window handle.
+
+    Args:
+        hwnd (int): The window handle.
+
+    Returns:
+        tuple[int, int, int, int] | None: The left, top, right, and bottom coordinates of the window,
+            or None if the window handle is invalid.
+    """
+    rect = wintypes.RECT()
+    try:
+        result = user32.GetWindowRect(hwnd, byref(rect))
+        if not result:
+            return None
+    except Exception:
+        return None
+    return rect.left, rect.top, rect.right, rect.bottom
+
+def get_process_name(pid: int) -> str | None:
+    """
+    Get the name of the process with the given process ID.
+
+    Args:
+        pid (int): The process ID.
+
+    Returns:
+        str | None: The name of the process, or None if the process does not exist or cannot be accessed.
+    """
+    kernel32 = windll.kernel32
+
+    try:
+        hProcess = kernel32.OpenProcess(PROCESS_QUERY_INFORMATION | PROCESS_VM_READ, False, pid)
+        if not hProcess:
+            return None
+
+        buffer = create_unicode_buffer(260)
+        buffer_size = c_uint32(260)
+        success = kernel32.QueryFullProcessImageNameW(hProcess, 0, byref(buffer), byref(buffer_size))
+        kernel32.CloseHandle(hProcess)
+
+        if success:
+            return os.path.basename(buffer.value) if buffer.value else None
+    except Exception:
+        pass
+
+    return None
+
+def has_border(hwnd: wintypes.HWND) -> bool:
+    """
+    Check if a window has a border or caption.
+
+    Args:
+        hwnd (ctypes.wintypes.HWND): The window handle.
+
+    Returns:
+        bool: True if the window has a border or caption, False otherwise.
+    """
+    style = GetWindowLong(hwnd, c_int(GWL_STYLE))
+    has_border = bool(style & WS_BORDER)
+    has_caption = bool(style & WS_CAPTION)
+    return has_border or has_caption
 
 
 def autologin():
@@ -1685,7 +1803,7 @@ def autologin():
     sleep(0.5)
     send('~')
     sleep(0.5)
-    mouse.click((80, 380))
+    mouse.click((LEFT+80, TOP+380))
     pyperclip.copy(secret_file["password"])
     send('ctrl+v')
     send('enter')
@@ -1699,13 +1817,31 @@ def autologin():
 
 add_hotkey('F8', autologin)
 
+def update_coordinates():
+    global WINDOW_WIDTH
+    global WINDOW_HEIGHT
+    global TELEPORT_TO_HOUSE
+    global MAX_COLS
+    global LEFT, TOP, RIGHT, BOTTOM
+    while True:
+        process = get_process("GTA5.exe")
+        if process is not None:
+            LEFT, TOP, RIGHT, BOTTOM = get_window_coordinates(process[0])
+            if has_border(process[0]):
+                LEFT += 8
+                TOP += 31
+                RIGHT -= 9
+                BOTTOM -= 9
+            WINDOW_WIDTH = RIGHT - LEFT
+            WINDOW_HEIGHT = BOTTOM - TOP
+            TELEPORT_TO_HOUSE = (LEFT+WINDOW_WIDTH/2 - 50, TOP+WINDOW_HEIGHT/2 + 101)
+            MAX_COLS = (WINDOW_WIDTH - 1170) // 163
+        sleep(0.5)
 
 if __name__ == '__main__':
     mouse = Mouse()
-    screen_width, screen_height = get_monitor_coordinates()
-    WINDOW_GEOMETRY = (990, 3, screen_width-990, 400)
-    TELEPORT_TO_HOUSE = (screen_width/2 - 50, screen_height/2 + 101)
-    MAX_COLS = (screen_width - 1158) // 163
+    thread = threading.Thread(target=update_coordinates)
+    thread.start()
     app = QApplication(sys.argv)
     main_app = MainApp()
     main_app.show()
