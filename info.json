@@ -1,6 +1,6 @@
 {
 	"hashes": {
-		"Binder.exe": "3dd9e22af8d265bb9a0ea1ee36aa27e2",
+		"Binder.exe": "f561f63fd5e0430756b4d12f78fe0c08",
 		"data/icons/about.svg": "5adb41862f73852ead45b79715bcf891",
 		"data/icons/arrow_down.svg": "4e9eaa7e61a6153562951ce9d2ac986a",
 		"data/icons/arrow_up.svg": "9cc12fe279edda63f52c99d8e89d1b21",
@@ -15,5 +15,5 @@
 		"data/configs/house_info.json",
 		"data/configs/violation_config.json"
 	],
-	"last_updated": "1716455833"
+	"last_updated": "1716480730"
 }
