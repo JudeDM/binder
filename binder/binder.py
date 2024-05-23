@@ -1,3 +1,4 @@
+# Импорты
 import sys
 import os
 from enum import Enum
@@ -18,7 +19,9 @@ from ctypes import Structure, windll, pointer, cast, c_void_p, c_ulong
 from json import dump as json_dump, load as json_load
 
 
+# pylint: disable=C0115, C0116, C0301
 
+# Файлы и константы
 __location__ = os.getcwd()
 binder = None
 mouse = None
@@ -76,8 +79,8 @@ pixel_conditions = {
         (305, 338): (68, 68, 68)
     },
     "should_show_control_buttons": {
-        (962, 370): (85, 85, 85),
-        (960, 384): (85, 85, 85)
+        (940, 360): (85, 85, 85),
+        (940, 385): (85, 85, 85)
     },
     "should_show_teleport_buttons": {
         (340, 370): (68, 68, 68),
@@ -1433,10 +1436,13 @@ class Binder(QWidget):
 
 
     def update_buttons(self):
-        is_console_open = all(get_pixel_color(*coord) == color for coord, color in pixel_conditions["should_show_violation_buttons"].items())
-        is_report_open = all(get_pixel_color(*coord) == color for coord, color in pixel_conditions["should_show_buttons"].items())
-        is_teleport_open = all(get_pixel_color(*coord) == color for coord, color in pixel_conditions["should_show_teleport_buttons"].items())
-        is_panel_open = all(get_pixel_color(*coord) == color for coord, color in pixel_conditions["should_show_control_buttons"].items())
+        is_console_open = all(is_within_range(get_pixel_color(*coord), color) for coord, color in pixel_conditions["should_show_violation_buttons"].items())
+        is_report_open = all(is_within_range(get_pixel_color(*coord), color) for coord, color in pixel_conditions["should_show_buttons"].items())
+        is_teleport_open = all(is_within_range(get_pixel_color(*coord), color) for coord, color in pixel_conditions["should_show_teleport_buttons"].items())
+        is_panel_open = all(is_within_range(get_pixel_color(*coord), color) for coord, color in pixel_conditions["should_show_control_buttons"].items())
+
+        # for coord, color in pixel_conditions["should_show_buttons"].items():
+        #     print(f"Координаты: {coord} Цвет: {get_pixel_color(*coord)} Необходимый цвет: {color}")
 
         if is_console_open and not self.is_violation_ui:
             self.is_violation_ui = True
@@ -1559,6 +1565,10 @@ def create_button(on_click_handler=None, text=None, icon_name=None, style=None):
     return button
 
 
+def is_within_range(color1: tuple, color2: tuple, tolerance=5) -> bool:
+    return all(abs(c1 - c2) <= tolerance for c1, c2 in zip(color1, color2))
+
+
 def paste_to_console(text: str):
     mouse.click((55, 375))
     sleep(0.1)
@@ -1642,7 +1652,7 @@ def save_house_button_config(data):
         json_dump(data, json_file, indent=4, ensure_ascii=False)
 
 
-def get_pixel_color(x, y):
+def get_pixel_color(x: int, y: int) -> tuple:
     hdc = windll.user32.GetDC(0)
     pixel = windll.gdi32.GetPixel(hdc, x, y)
     windll.user32.ReleaseDC(0, hdc)
@@ -1681,6 +1691,7 @@ def autologin():
     send('enter')
     sleep(0.5)
     paste_to_console("hp")
+    sleep(1.5)
     paste_to_console("fly")
     sleep(0.5)
     send('~')
