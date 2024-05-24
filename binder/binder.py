@@ -439,6 +439,7 @@ class MainApp(QDialog):
         self.setLayout(layout)
 
     def check_update(self):
+        urllib.request.urlcleanup()
         data = json_loads(urllib.request.urlopen("https://raw.githubusercontent.com/JudeDM/binder/main/info.json").read().decode())
         mismatched_files = [fp for fp, exp_hash in data["hashes"].items() if calculate_md5(fp) != exp_hash]
         if mismatched_files:
