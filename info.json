@@ -8,7 +8,7 @@
 		"data/icons/discord.svg": "f4df36ab76d3728ad345488386830267",
 		"data/icons/github.svg": "edf818ee91a636554d69783c62090afc",
 		"data/icons/minimize.svg": "1aa6e2426cde1160905f3debdd5f24ab",
-		"data/icons/update.svg": "1aa6e2426cde1160905f3debdd5f24ab"
+		"data/icons/update.svg": "61f236ac93ddf2d4d749a5cf9845d1ca"
 	},
 	"files": [
 		"data/configs/button_config.json",
