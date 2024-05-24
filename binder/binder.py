@@ -14,9 +14,12 @@ from webbrowser import open as webbrowser_open
 from keyboard import add_hotkey, send
 import pyperclip
 import threading
+import hashlib
+import urllib.request
+import subprocess
 
 from ctypes import Structure, windll, pointer, cast, c_void_p, c_ulong, c_bool, c_int, WINFUNCTYPE, c_uint32, create_unicode_buffer, byref, wintypes
-from json import dump as json_dump, load as json_load
+from json import dump as json_dump, load as json_load, loads as json_loads
 
 
 __location__ = os.getcwd()
@@ -278,7 +281,7 @@ class NotificationType(Enum):
 
 class Notification(QMessageBox):
     def __init__(self, text: str, notification_type: NotificationType=NotificationType.DEFAULT):
-        super(Notification, self).__init__()
+        super().__init__()
 
         self.setIcon(notification_type.get_icon())
         self.setWindowFlags(self.windowFlags() | Qt.WindowType.FramelessWindowHint | Qt.WindowType.WindowStaysOnTopHint)
@@ -304,31 +307,26 @@ class Notification(QMessageBox):
             }}
         """)
 
-
 class MainApp(QDialog):
     def __init__(self):
         super(MainApp, self).__init__()
         self.binder_running = False
+        self.check_update()
         self.setWindowTitle('Настройки биндера')
         self.setWindowFlags(Qt.WindowType.FramelessWindowHint)
         self.setStyleSheet(f"background-color: {BACKGROUND_COLOR};")
-
         self.setup_labels_and_edits()
         self.setup_buttons()
-
         self.init_ui()
-
 
     def mousePressEvent(self, event):
         self.dragPos = event.globalPosition().toPoint()
-
 
     def mouseMoveEvent(self, event):
         if hasattr(self, 'dragPos'):
             self.move(self.pos() + event.globalPosition().toPoint() - self.dragPos )
             self.dragPos = event.globalPosition().toPoint()
             event.accept()
-
 
     def setup_labels_and_edits(self):
         text_style = f"""
@@ -358,7 +356,6 @@ class MainApp(QDialog):
 
         self.password_edit.setEchoMode(QLineEdit.EchoMode.Password)
 
-
     def setup_buttons(self):
         control_button_style = f"""
             font-weight: 600;
@@ -382,9 +379,8 @@ class MainApp(QDialog):
         """
 
         self.show_password_button = create_button(on_click_handler=self.toggle_password_visibility, text="Показать пароль")
-        self.about_button, self.update_button, self.save_button, self.show_password_button, self.change_violation_button, self.change_pastes_button, self.change_properties_button, self.toggle_button = (
+        self.about_button, self.save_button, self.show_password_button, self.change_violation_button, self.change_pastes_button, self.change_properties_button, self.toggle_button = (
             create_button(on_click_handler=self.show_about_page, icon_name="about.svg", style=header_buttons_style),
-            create_button(on_click_handler=self.update_binder, icon_name="update.svg", style=header_buttons_style),
             create_button(on_click_handler=self.save_secret_data, text="Сохранить", style=control_button_style),
             create_button(on_click_handler=self.toggle_password_visibility, text="Показать пароль", style=control_button_style),
             create_button(on_click_handler=self.show_violation_settings, text="Наказания", style=footer_button_style),
@@ -393,13 +389,11 @@ class MainApp(QDialog):
             create_button(on_click_handler=self.toggle_binder, text="Запустить биндер", style=footer_button_style),
         )
 
-
     def init_ui(self):
         layout = QVBoxLayout()
 
         control_layout = create_control_layout(self)
         control_layout.insertWidget(0, self.about_button)
-        control_layout.insertWidget(1, self.update_button)
         control_layout.setAlignment(Qt.AlignmentFlag.AlignRight)
         control_widget = QWidget()
         control_widget.setFixedHeight(30)
@@ -444,25 +438,35 @@ class MainApp(QDialog):
 
         self.setLayout(layout)
 
+    def check_update(self):
+        data = json_loads(urllib.request.urlopen("https://raw.githubusercontent.com/JudeDM/binder/main/info.json").read().decode())
+        mismatched_files = [fp for fp, exp_hash in data["hashes"].items() if calculate_md5(fp) != exp_hash]
+        if mismatched_files:
+            updater_path = os.path.join(os.getcwd(), "..", "updater.exe")
+            if not os.path.exists(updater_path):
+                url = "https://github.com/JudeDM/binder/raw/main/updater.exe"
+                urllib.request.urlretrieve(url, updater_path)
+            subprocess.run(["taskkill", "/F", "/PID", str(os.getpid()), "&", "start", "cmd", "/c", updater_path], cwd=os.path.dirname(updater_path), shell=True)
 
     def toggle_password_visibility(self):
-        self.password_edit.setEchoMode(QLineEdit.EchoMode.Normal if self.password_edit.echoMode() == QLineEdit.EchoMode.Password else QLineEdit.EchoMode.Password)
-
+        if self.password_edit.echoMode() == QLineEdit.EchoMode.Password:
+            self.password_edit.setEchoMode(QLineEdit.EchoMode.Normal)
+            self.show_password_button.setText("Скрыть пароль")
+        else:
+            self.password_edit.setEchoMode(QLineEdit.EchoMode.Password)
+            self.show_password_button.setText("Показать пароль")
 
     def show_violation_settings(self):
         violation_settings_window = ViolationSettingsWindow(title="Кнопки для наказаний")
         violation_settings_window.exec()
 
-
     def show_buttons_settings(self):
         report_settings_window = ReportSettingsWindow(title="Кнопки для репортов")
         report_settings_window.exec()
 
-
     def show_house_settings(self):
         house_settings_window = HouseSettingsWindow(title="Телепорты к особнякам")
         house_settings_window.exec()
-
 
     def close_app(self):
         if binder:
@@ -471,13 +475,11 @@ class MainApp(QDialog):
             self.about_page.close()
         self.close()
 
-
     def toggle_binder(self):
         if self.binder_running:
             self.stop_binder()
         else:
             self.start_binder()
-
 
     def start_binder(self):
         if not hasattr(self, "isWarned"):
@@ -494,7 +496,6 @@ class MainApp(QDialog):
         binder = Binder()
         binder.start_window()
 
-
     def stop_binder(self):
         self.toggle_button.setText("Запустить биндер")
         self.toggle_button.clicked.disconnect()
@@ -503,28 +504,12 @@ class MainApp(QDialog):
         if binder:
             binder.close_window()
 
-
     def show_about_page(self):
         if hasattr(self, "about_page"):
             if not self.about_page.isHidden():
                 return
-
         self.about_page = AboutWindow()
         self.about_page.show()
-
-
-    def update_binder(self):
-        # if getattr(self, "update_page", None) is not None:
-        #     if not self.update_page.isHidden():
-        #         return
-        # self.update_page = UpdateWindow()
-        # self.update_page.show()
-
-        self.show_notification("Запустите файл Update.exe")
-        self.close_app()
-        # update_file = os.path.abspath(os.path.join(__location__, UPDATE_FILE))
-        # subprocess.run([update_file, '/S'], shell=True)
-
 
     def save_secret_data(self):
         try:
@@ -537,7 +522,6 @@ class MainApp(QDialog):
         }
         self.show_notification("Данные успешно сохранены!")
         save_secret_data(data)
-
 
     def show_notification(self, text: str, notification_type: NotificationType=NotificationType.DEFAULT):
         self.notification = Notification(text, notification_type)
@@ -553,7 +537,6 @@ class GTAModal(QWidget):
         self.setStyleSheet("background:transparent;")
         self.setup_ui()
 
-
     def setup_ui(self):
         self.setWindowTitle("Информация о приложении:")
         self.setAttribute(Qt.WidgetAttribute.WA_TranslucentBackground, True)
@@ -565,7 +548,6 @@ class GTAModal(QWidget):
         self.setup_middle()
         self.setup_footer()
         self.setLayout(self.main_layout)
-
 
     def setup_title(self):
         title_style = """
@@ -582,7 +564,6 @@ class GTAModal(QWidget):
         title_layout.addWidget(title_text)
         title_widget.setLayout(title_layout)
         self.main_layout.addWidget(title_widget)
-
 
     def setup_middle(self):
         text_style = f"""
@@ -655,7 +636,6 @@ class GTAModal(QWidget):
         middle_widget.setLayout(middle_layout)
         self.main_layout.addWidget(middle_widget)
 
-
     def setup_footer(self):
         send_button_style = f"""
             font-family: 'Verdana';
@@ -693,7 +673,6 @@ class GTAModal(QWidget):
         footer_widget.setLayout(footer_layout)
         self.main_layout.addWidget(footer_widget)
 
-
     def punish_user(self):
         try:
             int(self.gid_edit.text())
@@ -705,7 +684,6 @@ class GTAModal(QWidget):
         paste_to_console(f"{self.modal_type} {gid} {time} {reason}")
         self.close()
 
-
     def uncuff(self):
         try:
             int(self.gid_edit.text())
@@ -716,7 +694,6 @@ class GTAModal(QWidget):
         paste_to_console(f"{self.modal_type} {gid} {reason}")
         self.close()
 
-
     def uo_delete(self):
         try:
             int(self.uo_id_edit.text())
@@ -725,7 +702,6 @@ class GTAModal(QWidget):
         uo_id = self.uo_id_edit.text()
         paste_to_console(f"{self.modal_type} {uo_id}")
         self.close()
-
 
     def car_sync(self):
         user_gid = load_secret_config().get('id', '')
@@ -742,7 +718,6 @@ class GTAModal(QWidget):
             sleep(2.5)
         self.close()
 
-
     def show_notification(self, text: str, notification_type: NotificationType=NotificationType.DEFAULT):
         self.notification = Notification(text, notification_type)
         self.notification.show()
@@ -758,19 +733,15 @@ class AboutWindow(QWidget):
         """
         self.setup_ui()
 
-
     def setup_ui(self):
         self.setWindowTitle("Информация о приложении")
         self.setWindowFlags(Qt.WindowType.FramelessWindowHint)
         self.setStyleSheet(f"background-color: {BACKGROUND_COLOR};")
-
         self.main_layout = QVBoxLayout(self)
         control_layout = create_control_layout(self)
         self.main_layout.addLayout(control_layout)
-
         self.init_about_area()
         self.init_footer()
-
 
     def init_about_area(self):
         title_style = f"""
@@ -778,17 +749,14 @@ class AboutWindow(QWidget):
             font-size: 17px;
             color: {TEXT_COLOR};
         """
-
         text_area = QVBoxLayout()
         title = create_label(text="Основная информация:", style=title_style)
         title.setAlignment(Qt.AlignmentFlag.AlignHCenter)
-
         text = "F8 - Автологин.\n\nБиндер для GTA 5 RP, обеспечивающий администраторам удобство в модерировании.\nПросьба сообщать о возникающих проблемах через контактные данные, указанные ниже."
         about = create_label(text=text, style=self.text_style)
         text_area.addWidget(title)
         text_area.addWidget(about)
         self.main_layout.addLayout(text_area)
-
 
     def init_footer(self):
         button_style = f"""
@@ -796,11 +764,8 @@ class AboutWindow(QWidget):
             background-color:{BACKGROUND_COLOR};
             border: none;
         """
-
         footer_layout = QVBoxLayout()
-        # version_label = create_label(text=f"Версия приложения: {get_local_version()}", style=self.text_style)
         developer_label = create_label(text="Разработано: JudeDM (Dmitriy Win)", style=self.text_style)
-        # footer_layout.addWidget(version_label)
         footer_layout.addWidget(developer_label)
 
         footer_icons_layout = QHBoxLayout()
@@ -812,18 +777,14 @@ class AboutWindow(QWidget):
         footer_layout.addLayout(footer_icons_layout)
         self.main_layout.addLayout(footer_layout)
 
-
     def open_github(self):
         webbrowser_open("https://github.com/JudeDM/binder/tree/main")
-
 
     def open_discord(self):
         webbrowser_open("discord://-/users/208575718093750276")
 
-
     def mousePressEvent(self, event):
         self.dragPos = event.globalPosition().toPoint()
-
 
     def mouseMoveEvent(self, event):
         self.move(self.pos() + event.globalPosition().toPoint() - self.dragPos )
@@ -955,12 +916,10 @@ class SettingsWindow(QDialog):
     def mousePressEvent(self, event):
         self.dragPos = event.globalPosition().toPoint()
 
-
     def mouseMoveEvent(self, event):
         self.move(self.pos() + event.globalPosition().toPoint() - self.dragPos )
         self.dragPos = event.globalPosition().toPoint()
         event.accept()
-
 
     def add_item(self):
         if len(self.config) >= MAX_COLS * 10:
@@ -1746,6 +1705,28 @@ def get_window_coordinates(hwnd: int) -> tuple[int, int, int, int] | None:
     except Exception:
         return None
     return rect.left, rect.top, rect.right, rect.bottom
+
+def calculate_md5(file_path: str) -> str | None:
+    """
+    Calculate the MD5 hash of the file located at the given file_path.
+
+    Args:
+        file_path (str): The path to the file.
+
+    Returns:
+        str | None: The MD5 hash of the file, or None if the file is not found or an error occurs.
+    """
+    try:
+        with open(file_path, "rb") as f:
+            file_data = f.read()
+            if file_data is None:
+                return None
+            return hashlib.md5(file_data).hexdigest()
+    except FileNotFoundError:
+        return None
+    except Exception:
+        return None
+
 
 def get_process_name(pid: int) -> str | None:
     """
