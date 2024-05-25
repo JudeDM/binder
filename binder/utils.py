@@ -303,8 +303,8 @@ def get_reports_info() -> dict[str, dict[str, int]]:
 	today_date_dt = datetime.strptime(today_date, DATE_FORMAT)
 	month_ago_date_dt = datetime.strptime(month_ago_date, DATE_FORMAT)
 	reports_dict["daily_reports"] = {today_date: report_data.get(today_date, 0)}
-	reports_dict["weekly_reports"] = {today_date: report_data.get(today_date, 0)}
-	reports_dict["monthly_reports"] = {today_date: report_data.get(today_date, 0)}
+	reports_dict["weekly_reports"] = {week_ago_date: report_data.get(week_ago_date, 0)}
+	reports_dict["monthly_reports"] = {month_ago_date: report_data.get(month_ago_date, 0)}
 	first_day = next(iter(report_data), today_date)
 	reports_dict["all_reports"] = {first_day: report_data.get(first_day, 0)}
 	for date in report_data:

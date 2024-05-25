@@ -1,4 +1,4 @@
-import sys
+﻿import sys
 import os
 import threading
 import subprocess
@@ -557,9 +557,9 @@ class AboutWindow(QWidget):
 		reports_data = utils.get_reports_info()
 		daily_reports, weekly_reports, monthly_reports, all_reports = utils.get_reports_count(reports_data=reports_data)
 		daily_text = f"За сегодня: {daily_reports}\n({next(iter(reports_data["daily_reports"]))})"
-		weekly_text = f"За неделю: {weekly_reports}\n({next(iter(reports_data["weekly_reports"]))})"
-		monthly_text = f"За месяц: {monthly_reports}\n({next(iter(reports_data["monthly_reports"]))})"
-		all_text = f"За всё время: {all_reports}\n({next(iter(reports_data["all_reports"]))})"
+		weekly_text = f"За неделю: {weekly_reports}\n(с {next(iter(reports_data["weekly_reports"]))})"
+		monthly_text = f"За месяц: {monthly_reports}\n(с {next(iter(reports_data["monthly_reports"]))})"
+		all_text = f"За всё время: {all_reports}\n(с {next(iter(reports_data["all_reports"]))})"
 		daily_label = utils.create_label(text=daily_text, style=config.ABOUT_WINDOW_TEXT_STYLE)
 		weekly_label = utils.create_label(text=weekly_text, style=config.ABOUT_WINDOW_TEXT_STYLE)
 		monthly_label = utils.create_label(text=monthly_text, style=config.ABOUT_WINDOW_TEXT_STYLE)
