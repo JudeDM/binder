@@ -7,7 +7,7 @@
 		"data/icons/delete.svg": "0167535645d16da81773db46b9e1e45f",
 		"data/icons/discord.svg": "f4df36ab76d3728ad345488386830267",
 		"data/icons/github.svg": "edf818ee91a636554d69783c62090afc",
-		"data/icons/minimize.svg": "1aa6e2426cde1160905f3debdd5f24ab"
+		"data/icons/minimize.svg": "a091b211272d9fea333a58d0a54c069c"
 	},
 	"files": [
 		"data/configs/button_config.json",
