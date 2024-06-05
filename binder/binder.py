@@ -1,4 +1,4 @@
-﻿import os
+import os
 import subprocess
 import sys
 import threading
@@ -1355,7 +1355,6 @@ keyboard.add_hotkey('F8', autologin)
 def update_coordinates():
 	global WINDOW_WIDTH
 	global WINDOW_HEIGHT
-	global TELEPORT_TO_HOUSE
 	global MAX_COLS
 	global LEFT, TOP, RIGHT, BOTTOM
 	while True:
@@ -1369,7 +1368,6 @@ def update_coordinates():
 				BOTTOM -= 9
 			WINDOW_WIDTH = RIGHT - LEFT
 			WINDOW_HEIGHT = BOTTOM - TOP
-			TELEPORT_TO_HOUSE = (LEFT+WINDOW_WIDTH/2 - 50, TOP+WINDOW_HEIGHT/2 + 101)
 			MAX_COLS = (WINDOW_WIDTH - 1170) // 163
 		time.sleep(0.5)
 
