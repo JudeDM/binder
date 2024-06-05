@@ -1,11 +1,34 @@
 ﻿DATE_FORMAT = "%d.%m.%Y"
+UNCUFF_DEFAULT_REASON = "Поблизости никого нет"
+
 TEXT_COLOR = "#e0e0e0"
 BORDER_COLOR = "#3D5A80"
 BACKGROUND_COLOR = "#0f1c2e"
 LINE_BACKGROUND_COLOR = "#4d648d"
 BACKGROUND_COLOR_STYLE = f"background-color: {BACKGROUND_COLOR}"
 CONTROL_BUTTONS_STYLE = f"width: 40px; background-color: {BACKGROUND_COLOR}; border: none;"
+WINDOW_HEADER_STYLE = f"font-weight: 600; font-size: 16px; color: {TEXT_COLOR}"
 
+
+# NOTIFICATION STYLE
+NOTIFICATION_STYLE = f"""
+    QMessageBox {{
+        background-color: {BACKGROUND_COLOR};
+        border: 2px solid %color%;
+    }}
+    QPushButton {{
+        background-color: %color%;
+        color: white;
+        border: 1px solid %color%;
+        padding: 5px;
+        width: 100%;
+    }}
+    QLabel {{
+        color: %color%;
+        font-size: 14px;
+        font-weight: bold;
+    }}
+"""
 
 # SETTINGS WINDOW STYLE
 SETTINGS_WINDOW_STYLE = F"""
@@ -196,6 +219,7 @@ SETTINGS_BUTTON_STYLE = """
 # REPORT SETTINGS STYLE
 REPORT_SETTINGS_SHORT_STYLE = f"""
     min-width: 140px;
+    max-width: 140px;
     font-size: 14px;
     font-weight: 500;
     color: {TEXT_COLOR};
@@ -204,11 +228,26 @@ REPORT_SETTINGS_SHORT_STYLE = f"""
 """
 REPORT_SETTINGS_LONG_STYLE = f"""
     min-width: 300px;
+    max-width: 300px;
     font-size: 14px;
     font-weight: 500;
     color: {TEXT_COLOR};
     background-color: {LINE_BACKGROUND_COLOR};
     border: 2px solid {BORDER_COLOR};
+"""
+REPORT_SETTINGS_SHORT_LABEL_STYLE = f"""
+    min-width: 145px;
+    max-width: 145px;
+    font-weight: 600;
+    font-size: 15px;
+    color: {TEXT_COLOR};
+"""
+REPORT_SETTINGS_LONG_LABEL_STYLE = f"""
+    min-width: 305px;
+    max-width: 305px;
+    font-weight: 600;
+    font-size: 15px;
+    color: {TEXT_COLOR};
 """
 
 
@@ -231,18 +270,38 @@ VIOLATION_SETTINGS_LONG_STYLE = f"""
     background-color: {LINE_BACKGROUND_COLOR};
     border: 2px solid {BORDER_COLOR};
 """
+VIOLATION_SETTINGS_SHORT_LABEL_STYLE = f"""
+    min-width: 105px;
+    max-width: 105px;
+    font-weight: 600;
+    font-size: 15px;
+    color: {TEXT_COLOR};
+"""
+VIOLATION_SETTINGS_LONG_LABEL_STYLE = f"""
+    min-width: 300px;
+    max-width: 300px;
+    font-weight: 600;
+    font-size: 15px;
+    color: {TEXT_COLOR};
+"""
 
-
-# HOUSE SETTINGS STYLE
-HOUSE_SETTINGS_SHORT_STYLE = f"""
-    min-width: 140px;
-    font-size: 14px;
+# TELEPORT SETTINGS STYLE
+TELEPORT_SETTINGS_SHORT_STYLE = f"""
+    min-width: 180px;
+    max-width: 180px;
+    font-size: 15px;
     font-weight: 500;
     color: {TEXT_COLOR};
     background-color: {LINE_BACKGROUND_COLOR};
     border: 2px solid {BORDER_COLOR};
 """
-
+TELEPORT_SETTINGS_LABEL_STYLE = f"""
+    min-width: 180px;
+    max-width: 180px;
+    font-weight: 600;
+    font-size: 15px;
+    color: {TEXT_COLOR};
+"""
 
 # ABOUT WINDOW STYLE
 ABOUT_WINDOW_TITLE_STYLE = f"""

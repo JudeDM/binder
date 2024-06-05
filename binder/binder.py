@@ -1,23 +1,23 @@
-﻿import sys
-import os
-import threading
+﻿import os
 import subprocess
-from enum import Enum
+import sys
+import threading
 import time
-from datetime import datetime
-from PyQt6.QtWidgets import (
-	QApplication, QWidget, QLineEdit,
-	QVBoxLayout, QHBoxLayout, QGridLayout, QDialog, QComboBox,
-	QFormLayout, QScrollArea, QScrollBar, QMessageBox
-)
-from PyQt6.QtCore import Qt, QTimer
-from PyQt6.QtGui import QPalette, QColor, QMouseEvent
 import webbrowser
+from datetime import datetime
+from enum import Enum
+from typing import Callable
+
 import keyboard
 import pyperclip
-import utils
-import config
+from PyQt6.QtCore import Qt, QTimer
+from PyQt6.QtGui import QColor, QMouseEvent, QPalette
+from PyQt6.QtWidgets import (QApplication, QComboBox, QDialog, QFormLayout,
+                             QGridLayout, QHBoxLayout, QLineEdit, QMessageBox,
+                             QScrollArea, QScrollBar, QVBoxLayout, QWidget)
 
+import config
+import utils
 
 binder = None
 mouse = None
@@ -26,24 +26,6 @@ MAX_COLS = 1
 WINDOW_WIDTH, WINDOW_HEIGHT = 0, 0
 LEFT, TOP, RIGHT, BOTTOM = 0, 0, 0, 0
 
-pixel_conditions = {
-	"should_show_violation_buttons": {
-		(20, 370): (68, 68, 68),
-		(70, 370): (68, 68, 68)
-	},
-	"should_show_report_buttons": {
-		(250, 370): (68, 68, 68),
-		(305, 338): (68, 68, 68)
-	},
-	"should_show_control_buttons": {
-		(940, 360): (85, 85, 85),
-		(940, 385): (85, 85, 85)
-	},
-	"should_show_teleport_buttons": {
-		(340, 370): (68, 68, 68),
-		(420, 370): (68, 68, 68)
-	}
-}
 
 if not os.path.exists("data"):
 	os.makedirs("data")
@@ -74,30 +56,11 @@ class NotificationType(Enum):
 class Notification(QMessageBox):
 	def __init__(self, text: str, notification_type: NotificationType=NotificationType.DEFAULT):
 		super().__init__()
-
 		self.setIcon(notification_type.get_icon())
 		self.setWindowFlags(self.windowFlags() | Qt.WindowType.FramelessWindowHint | Qt.WindowType.WindowStaysOnTopHint)
 		self.setText(text)
-
 		color = notification_type.get_color()
-		self.setStyleSheet(f"""
-			QMessageBox {{
-				background-color: {config.BACKGROUND_COLOR};
-				border: 2px solid {color};
-			}}
-			QPushButton {{
-				background-color: {color};
-				color: white;
-				border: 1px solid {color};
-				padding: 5px;
-				width: 100%;
-			}}
-			QLabel {{
-				color: {color};
-				font-size: 14px;
-				font-weight: bold;
-			}}
-		""")
+		self.setStyleSheet(config.NOTIFICATION_STYLE.replace("%color%", color))
 
 class MainApp(QDialog):
 	def __init__(self):
@@ -172,28 +135,20 @@ class MainApp(QDialog):
 		- None
 		"""
 		self.show_password_button = utils.create_button(on_click_handler=self.toggle_password_visibility, text="Показать пароль")
-		self.about_button, self.save_button, self.show_password_button, self.change_violation_button, self.change_pastes_button, self.change_properties_button, self.toggle_button = (
-			utils.create_button(on_click_handler=self.show_about_page, icon_name="about.svg", style=config.MAIN_APP_HEADER_BUTTON_STYLE),
+		self.about_button, self.save_button, self.show_password_button, self.change_violation_button, self.change_pastes_button, self.change_teleports_button, self.toggle_button = (
+			utils.create_button(on_click_handler=self.show_about_page, icon_name="about", style=config.MAIN_APP_HEADER_BUTTON_STYLE),
 			utils.create_button(on_click_handler=self.save_secret_data, text="Сохранить", style=config.MAIN_APP_CONTROL_BUTTON_STYLE),
 			utils.create_button(on_click_handler=self.toggle_password_visibility, text="Показать пароль", style=config.MAIN_APP_CONTROL_BUTTON_STYLE),
 			utils.create_button(on_click_handler=self.show_violation_settings, text="Наказания", style=config.MAIN_APP_FOOTER_BUTTON_STYLE),
 			utils.create_button(on_click_handler=self.show_buttons_settings, text="Репорты", style=config.MAIN_APP_FOOTER_BUTTON_STYLE),
-			utils.create_button(on_click_handler=self.show_house_settings, text="Особняки", style=config.MAIN_APP_FOOTER_BUTTON_STYLE),
+			utils.create_button(on_click_handler=self.show_teleport_settings, text="Телепорты", style=config.MAIN_APP_FOOTER_BUTTON_STYLE),
 			utils.create_button(on_click_handler=self.toggle_binder, text="Запустить биндер", style=config.MAIN_APP_FOOTER_BUTTON_STYLE),
 		)
 
 	def init_ui(self):
 		layout = QVBoxLayout()
-
-		control_layout = create_control_layout(self)
-		control_layout.insertWidget(0, self.about_button)
-		control_layout.setAlignment(Qt.AlignmentFlag.AlignRight)
-		control_widget = QWidget()
-		control_widget.setFixedHeight(30)
-		control_widget.setStyleSheet(config.BACKGROUND_COLOR_STYLE)
-		control_widget.setLayout(control_layout)
-		layout.addWidget(control_widget)
-
+		control_layout = create_header_layout(self)
+		layout.addLayout(control_layout)
 		input_row1_layout = QHBoxLayout()
 		input_row1_layout.addWidget(self.id_label)
 		input_row1_layout.addWidget(self.id_edit)
@@ -214,7 +169,7 @@ class MainApp(QDialog):
 		footer_setting_buttons_layout = QHBoxLayout()
 		footer_setting_buttons_layout.addWidget(self.change_violation_button)
 		footer_setting_buttons_layout.addWidget(self.change_pastes_button)
-		footer_setting_buttons_layout.addWidget(self.change_properties_button)
+		footer_setting_buttons_layout.addWidget(self.change_teleports_button)
 		footer_setting_layout = QVBoxLayout()
 		self.footer_settings_label.setAlignment(Qt.AlignmentFlag.AlignHCenter)
 		footer_setting_layout.addWidget(self.footer_settings_label)
@@ -265,15 +220,15 @@ class MainApp(QDialog):
 		report_settings_window = ReportSettingsWindow(title="Репорты")
 		report_settings_window.exec()
 
-	def show_house_settings(self) -> None:
+	def show_teleport_settings(self) -> None:
 		"""
-		Shows the House Settings window.
+		Shows the Teleport Settings window.
 
 		Returns:
 		- None
 		"""
-		house_settings_window = HouseSettingsWindow(title="Особняки")
-		house_settings_window.exec()
+		teleport_settings_window = TeleportSettingsWindow(title="Телепорты")
+		teleport_settings_window.exec()
 
 	def close_app(self) -> None:
 		"""
@@ -325,9 +280,8 @@ class MainApp(QDialog):
 			binder.close_window()
 
 	def show_about_page(self):
-		if hasattr(self, "about_page"):
-			if not self.about_page.isHidden():
-				return
+		if hasattr(self, "about_page") and not self.about_page.isHidden():
+			return
 		self.about_page = AboutWindow()
 		self.about_page.show()
 
@@ -535,11 +489,11 @@ class AboutWindow(QWidget):
 		self.setup_ui()
 
 	def setup_ui(self):
-		self.setWindowTitle("О приложении")
+		self.setWindowTitle("Дополнительная информация")
 		self.setWindowFlags(Qt.WindowType.FramelessWindowHint)
 		self.setStyleSheet(config.BACKGROUND_COLOR_STYLE)
 		self.main_layout = QVBoxLayout(self)
-		control_layout = create_control_layout(self)
+		control_layout = create_header_layout(instance=self, title="Дополнительная информация")
 		self.main_layout.addLayout(control_layout)
 		self.init_about_area()
 		self.init_footer()
@@ -603,9 +557,8 @@ class AboutWindow(QWidget):
 		Returns:
 		- None
 		"""
-		if hasattr(self, "reports_info_page"):
-			if not self.reports_info_page.isHidden():
-				return
+		if hasattr(self, "reports_info_page") and not self.reports_info_page.isHidden():
+			return
 		self.reports_info_page = ReporsInfoWindow(period_type=period_type)
 		self.reports_info_page.show()
 		self.reports_info_page.show()
@@ -616,8 +569,8 @@ class AboutWindow(QWidget):
 		developer_label.setAlignment(Qt.AlignmentFlag.AlignRight)
 		footer_layout.addWidget(developer_label)
 		footer_icons_layout = QHBoxLayout()
-		github_button = utils.create_button(on_click_handler=self.open_github, icon_name='github.svg', style=config.ABOUT_WINDOW_ICONS_BUTTON_STYLE)
-		discord_button = utils.create_button(on_click_handler=self.open_discord, icon_name='discord.svg', style=config.ABOUT_WINDOW_ICONS_BUTTON_STYLE)
+		github_button = utils.create_button(on_click_handler=self.open_github, icon_name='github', style=config.ABOUT_WINDOW_ICONS_BUTTON_STYLE)
+		discord_button = utils.create_button(on_click_handler=self.open_discord, icon_name='discord', style=config.ABOUT_WINDOW_ICONS_BUTTON_STYLE)
 		footer_icons_layout.addWidget(github_button)
 		footer_icons_layout.addWidget(discord_button)
 		footer_layout.addLayout(footer_icons_layout)
@@ -688,7 +641,7 @@ class ReporsInfoWindow(QWidget):
 		self.setMinimumSize(400, 200)
 		self.setStyleSheet(config.BACKGROUND_COLOR_STYLE)
 		self.main_layout = QVBoxLayout(self)
-		control_layout = create_control_layout(self)
+		control_layout = create_header_layout(self)
 		self.main_layout.addLayout(control_layout)
 		self.init_report_area()
 
@@ -709,10 +662,10 @@ class ReporsInfoWindow(QWidget):
 		Handles the mouse press event.
 
 		Args:
-			event (QMouseEvent): The mouse event.
+		- event (QMouseEvent): The mouse event.
 
 		Returns:
-			None
+		- None
 		"""
 		if event is None:
 			raise ValueError("Event cannot be None")
@@ -726,10 +679,10 @@ class ReporsInfoWindow(QWidget):
 		Moves the window when dragging the mouse.
 
 		Args:
-			event (QMouseEvent): The mouse event.
+		- event (QMouseEvent): The mouse event.
 
 		Returns:
-			None
+		- None
 		"""
 		if event is None or not hasattr(self, 'dragPos'):
 			return
@@ -754,9 +707,9 @@ class SettingsWindow(QDialog):
 		self.settings_type = settings_type
 		self.setWindowTitle(title)
 		self.setWindowFlags(Qt.WindowType.FramelessWindowHint)
-		self.setMinimumSize(1200, 470)
+		self.setMinimumSize(1200, 500)
 		self.main_layout = QVBoxLayout(self)
-		control_layout = create_control_layout(self)
+		control_layout = create_header_layout(self)
 		self.main_layout.addLayout(control_layout)
 		control_panel_layout = QHBoxLayout()
 		add_column_button = utils.create_button(on_click_handler=self.add_item, text="Добавить кнопку")
@@ -764,8 +717,8 @@ class SettingsWindow(QDialog):
 		control_panel_layout.addWidget(add_column_button)
 		control_panel_layout.addWidget(save_button)
 
-		if settings_type == "house":
-			self.config = [item for sublist in utils.load_house_button_config() for item in sublist]
+		if settings_type == "teleport":
+			self.config = [item for sublist in utils.load_teleport_button_config() for item in sublist]
 		elif settings_type == "report":
 			self.config = [item for sublist in utils.load_report_button_config() for item in sublist]
 		elif settings_type == "violation":
@@ -830,8 +783,10 @@ class SettingsWindow(QDialog):
 		new_item = {"name": ""}
 		if self.settings_type == "report":
 			new_item["text"] = ""
+		elif self.settings_type == "teleport":
+			new_item["coords"] = ""
 		elif self.settings_type == "violation":
-			new_item.update({"time": "", "reason": "", "type": "prison"})
+			new_item |= {"time": "", "reason": "", "type": "prison"}
 
 		self.config.append(new_item)
 		self.calling_instance.update_layout()
@@ -855,9 +810,7 @@ class SettingsWindow(QDialog):
 	def clear_layout(cls, layout):
 		while layout.count():
 			item = layout.takeAt(0)
-			widget = item.widget()
-
-			if widget:
+			if widget := item.widget():
 				widget.setParent(None)
 			else:
 				cls.clear_layout(item.layout())
@@ -866,9 +819,9 @@ class SettingsWindow(QDialog):
 	def item_control_buttons(self, item_index):
 		item_control_buttons = QHBoxLayout()
 		delete_button, moveup_button, movedown_button = (
-			utils.create_button(on_click_handler=lambda: self.remove_item(item_index), icon_name="delete.svg", style=config.SETTINGS_BUTTON_STYLE),
-			utils.create_button(on_click_handler=lambda: self.move_item(item_index, "up"), icon_name="arrow_up.svg", style=config.SETTINGS_BUTTON_STYLE),
-			utils.create_button(on_click_handler=lambda: self.move_item(item_index, "down"), icon_name="arrow_down.svg", style=config.SETTINGS_BUTTON_STYLE),
+			utils.create_button(on_click_handler=lambda: self.remove_item(item_index), icon_name="delete", style=config.SETTINGS_BUTTON_STYLE),
+			utils.create_button(on_click_handler=lambda: self.move_item(item_index, "up"), icon_name="arrow_up", style=config.SETTINGS_BUTTON_STYLE),
+			utils.create_button(on_click_handler=lambda: self.move_item(item_index, "down"), icon_name="arrow_down", style=config.SETTINGS_BUTTON_STYLE),
 		)
 		delete_button.setFixedWidth(20)
 		moveup_button.setFixedWidth(20)
@@ -882,8 +835,8 @@ class SettingsWindow(QDialog):
 
 	def save_config(self):
 		self.show_notification("Конфиг успешно сохранён.")
-		if self.settings_type == "house":
-			utils.save_house_button_config([self.config[i:i+10] for i in range(0, len(self.config), 10)])
+		if self.settings_type == "teleport":
+			utils.save_teleport_button_config([self.config[i:i+10] for i in range(0, len(self.config), 10)])
 		elif self.settings_type == "report":
 			utils.save_report_button_config([self.config[i:i+10] for i in range(0, len(self.config), 10)])
 		elif self.settings_type == "violation":
@@ -908,7 +861,7 @@ class ViolationSettingsWindow(SettingsWindow):
 			self.clear_layout(self.violation_manager_layout)
 
 		self.violation_manager_layout = QHBoxLayout()
-		for group_index, violation_group in enumerate([self.config[i:i+10] for i in range(0, len(self.config), 10)]):
+		for group_index, violation_group in enumerate(self.config[i:i+10] for i in range(0, len(self.config), 10)):
 			self.create_violation_group_layout(violation_group, group_index)
 
 		self.main_scroll_layout.addLayout(self.violation_manager_layout)
@@ -918,7 +871,17 @@ class ViolationSettingsWindow(SettingsWindow):
 	def create_violation_group_layout(self, violation_group, group_index):
 		group_layout = QVBoxLayout()
 		group_layout.setAlignment(Qt.AlignmentFlag.AlignTop | Qt.AlignmentFlag.AlignLeft)
-
+		type_title = utils.create_label(text="Тип:", style=config.VIOLATION_SETTINGS_SHORT_LABEL_STYLE)
+		name_title = utils.create_label(text="Название:", style=config.VIOLATION_SETTINGS_SHORT_LABEL_STYLE)
+		time_title = utils.create_label(text="Время:", style=config.VIOLATION_SETTINGS_SHORT_LABEL_STYLE)
+		reason_title = utils.create_label(text="Причина:", style=config.VIOLATION_SETTINGS_LONG_LABEL_STYLE)
+		titles_layout = QHBoxLayout()
+		titles_layout.setAlignment(Qt.AlignmentFlag.AlignLeft)
+		titles_layout.addWidget(type_title)
+		titles_layout.addWidget(name_title)
+		titles_layout.addWidget(time_title)
+		titles_layout.addWidget(reason_title)
+		group_layout.addLayout(titles_layout)
 		for index, violation in enumerate(violation_group):
 			violation_index = group_index * 10 + index
 			row = QHBoxLayout()
@@ -958,30 +921,33 @@ class ReportSettingsWindow(SettingsWindow):
 		current_scroll_position = self.horizontal_scrollbar.value()
 		if hasattr(self, 'report_manager_layout'):
 			self.clear_layout(self.report_manager_layout)
-
-
 		self.report_manager_layout = QHBoxLayout()
-		for group_index, report_group in enumerate([self.config[i:i+10] for i in range(0, len(self.config), 10)]):
+		for group_index, report_group in enumerate(self.config[i:i+10] for i in range(0, len(self.config), 10)):
 			self.create_report_group_layout(report_group, group_index)
-
-
 		self.main_scroll_layout.addLayout(self.report_manager_layout)
 		self.horizontal_scrollbar.setValue(current_scroll_position)
 
 	def create_report_group_layout(self, report_group, group_index):
 		group_layout = QVBoxLayout()
 		group_layout.setAlignment(Qt.AlignmentFlag.AlignTop)
-
+		name_title = utils.create_label(text="Название кнопки:", style=config.REPORT_SETTINGS_SHORT_LABEL_STYLE)
+		text_title = utils.create_label(text="Текст ответа:", style=config.REPORT_SETTINGS_LONG_LABEL_STYLE)
+		name_title.setAlignment(Qt.AlignmentFlag.AlignLeft)
+		text_title.setAlignment(Qt.AlignmentFlag.AlignLeft)
+		titles_layout = QHBoxLayout()
+		titles_layout.setAlignment(Qt.AlignmentFlag.AlignLeft)
+		titles_layout.addWidget(name_title)
+		titles_layout.addWidget(text_title)
+		group_layout.addLayout(titles_layout)
 		for index, report in enumerate(report_group):
 			report_index = group_index * 10 + index
 			row = QHBoxLayout()
 			form_layout = QFormLayout()
-			name_edit = QLineEdit(text=report["name"])
+
+			name_edit = utils.create_line(text=report["name"], style=config.REPORT_SETTINGS_SHORT_STYLE)
+			text_edit = utils.create_line(text=report["text"], style=config.REPORT_SETTINGS_LONG_STYLE)
 			name_edit.textChanged.connect(lambda text, index=report_index: self.update_report_field(index, "name", text))
-			text_edit = QLineEdit(text=report["text"])
 			text_edit.textChanged.connect(lambda text, index=report_index: self.update_report_field(index, "text", text))
-			name_edit.setStyleSheet(config.REPORT_SETTINGS_SHORT_STYLE)
-			text_edit.setStyleSheet(config.REPORT_SETTINGS_LONG_STYLE)
 			row.addWidget(name_edit)
 			row.addWidget(text_edit)
 			row.addLayout(self.item_control_buttons(report_index))
@@ -989,45 +955,77 @@ class ReportSettingsWindow(SettingsWindow):
 			group_layout.addLayout(form_layout)
 		self.report_manager_layout.addLayout(group_layout)
 
-	def update_report_field(self, item_index, field, new_name):
+	def update_report_field(self, item_index: int, field: str, new_name: str) -> None:
+		"""
+		Update the specified field of the report at the given index.
+
+		Args:
+		- item_index (int): The index of the report to update.
+		- field (str): The field of the report to update.
+		- new_name (str): The new value for the specified field.
+
+		Returns:
+		- None
+		"""
 		self.config[item_index][field] = new_name
 
 
-class HouseSettingsWindow(SettingsWindow):
+class TeleportSettingsWindow(SettingsWindow):
 	def __init__(self, title):
-		super().__init__(title=title, settings_type="house", calling_instance=self)
+		super().__init__(title=title, settings_type="teleport", calling_instance=self)
 		self.update_layout()
+
 
 	def update_layout(self):
 		current_scroll_position = self.horizontal_scrollbar.value()
-		if hasattr(self, 'house_manager_layout'):
-			self.clear_layout(self.house_manager_layout)
-
-		self.house_manager_layout = QHBoxLayout()
-		for group_index, house_group in enumerate([self.config[i:i+10] for i in range(0, len(self.config), 10)]):
-			self.create_house_group_layout(house_group, group_index)
-
-		self.main_scroll_layout.insertLayout(0, self.house_manager_layout)
+		if hasattr(self, 'teleport_manager_layout'):
+			self.clear_layout(self.teleport_manager_layout)
+		self.teleport_manager_layout = QHBoxLayout()
+		for group_index, teleport_group in enumerate(self.config[i:i+10] for i in range(0, len(self.config), 10)):
+			self.create_teleport_group_layout(teleport_group, group_index)
+		self.main_scroll_layout.addLayout(self.teleport_manager_layout)
 		self.horizontal_scrollbar.setValue(current_scroll_position)
 
-
-	def create_house_group_layout(self, house_group, group_index):
+	def create_teleport_group_layout(self, teleport_group, group_index):
 		group_layout = QVBoxLayout()
 		group_layout.setAlignment(Qt.AlignmentFlag.AlignTop)
-
-		for index, house in enumerate(house_group):
-			house_index = group_index * 10 + index
+		name_title = utils.create_label(text="Название кнопки:", style=config.TELEPORT_SETTINGS_LABEL_STYLE)
+		text_title = utils.create_label(text="Координаты:", style=config.TELEPORT_SETTINGS_LABEL_STYLE)
+		name_title.setAlignment(Qt.AlignmentFlag.AlignLeft)
+		text_title.setAlignment(Qt.AlignmentFlag.AlignLeft)	
+		titles_layout = QHBoxLayout()
+		titles_layout.setAlignment(Qt.AlignmentFlag.AlignLeft)
+		titles_layout.addWidget(name_title)
+		titles_layout.addWidget(text_title)
+		group_layout.addLayout(titles_layout)
+		for index, report in enumerate(teleport_group):
+			button_index = group_index * 10 + index
+			row = QHBoxLayout()
 			form_layout = QFormLayout()
-			name_edit = QLineEdit(text=house["name"])
-			name_edit.textChanged.connect(lambda text, index=house_index: self.update_house_name(index, text))
-			name_edit.setStyleSheet(config.HOUSE_SETTINGS_SHORT_STYLE)
-			form_layout.addRow(name_edit, self.item_control_buttons(house_index))
+			name_edit = utils.create_line(text=report["name"], style=config.TELEPORT_SETTINGS_SHORT_STYLE)
+			coords_edit = utils.create_line(text=report["coords"], style=config.TELEPORT_SETTINGS_SHORT_STYLE)
+			name_edit.textChanged.connect(lambda text, index=button_index: self.update_teleport_field(index, "name", text))
+			coords_edit.textChanged.connect(lambda text, index=button_index: self.update_teleport_field(index, "coords", text))
+			row.addWidget(name_edit)
+			row.addWidget(coords_edit)
+			row.addLayout(self.item_control_buttons(button_index))
+			form_layout.addRow(row)
 			group_layout.addLayout(form_layout)
+		self.teleport_manager_layout.addLayout(group_layout)
 
-		self.house_manager_layout.addLayout(group_layout)
+	def update_teleport_field(self, item_index: int, field: str, new_name: str) -> None:
+		"""
+		Update the specified field of the teleport at the given index.
 
-	def update_house_name(self, item_index, new_name):
-		self.config[item_index]['name'] = new_name
+		Args:
+		- item_index (int): The index of the report to update.
+		- field (str): The field of the report to update.
+		- new_name (str): The new value for the specified field.
+
+		Returns:
+		- None
+		"""
+		self.config[item_index][field] = new_name
 
 
 class Binder(QWidget):
@@ -1037,7 +1035,7 @@ class Binder(QWidget):
 		self.setWindowFlags(Qt.WindowType.FramelessWindowHint | Qt.WindowType.WindowStaysOnTopHint)
 		self.setAttribute(Qt.WidgetAttribute.WA_TranslucentBackground, True)
 		self.setAttribute(Qt.WidgetAttribute.WA_DeleteOnClose)
-		self.violation_buttons, self.buttons, self.house_buttons, self.report_labels = {}, {}, {}, []
+		self.violation_buttons, self.buttons, self.teleport_buttons, self.report_labels = {}, {}, {}, []
 		self.is_violation_ui, self.is_report_ui, self.is_teleport_ui, self.is_additional_ui = False, False, False, False
 		self.init_ui()
 		timer = QTimer(self, timeout=self.update_buttons)
@@ -1075,28 +1073,23 @@ class Binder(QWidget):
 				self.report_buttons_layout.addWidget(button, row, col)
 		self.main_layout.insertLayout(0, self.report_buttons_layout)
 
-	def init_house_ui(self):
-		self.house_layout = QGridLayout()
-		self.house_layout.setAlignment(Qt.AlignmentFlag.AlignTop | Qt.AlignmentFlag.AlignLeft)
-		self.house_layout.setHorizontalSpacing(10)
-		self.house_layout.setVerticalSpacing(5)
-		house_button_configs = utils.load_house_button_config()
+	def init_teleport_ui(self):
+		self.teleport_layout = QGridLayout()
+		self.teleport_layout.setAlignment(Qt.AlignmentFlag.AlignTop | Qt.AlignmentFlag.AlignLeft)
+		self.teleport_layout.setHorizontalSpacing(10)
+		self.teleport_layout.setVerticalSpacing(5)
+		teleport_button_config = utils.load_teleport_button_config()
 
-		def teleport_closure(name):
-			return lambda: self.teleport_to_house(name)
-
-		for col, col_config in enumerate(house_button_configs):
+		for col, col_config in enumerate(teleport_button_config):
 			if col >= MAX_COLS:
 				continue
-			for row, house_button_config in enumerate(col_config):
-				button_number = row * len(house_button_configs) + col + 1
-				name = house_button_config['name']
+			for row, teleport_button_config in enumerate(col_config):
+				button_number = row * len(teleport_button_config) + col + 1
+				button = utils.create_button(on_click_handler=self.handle_teleport_button_click, text=teleport_button_config['name'], style=config.ADMIN_BUTTON_STYLE)
+				self.teleport_buttons[button_number] = (button, teleport_button_config['coords'])
+				self.teleport_layout.addWidget(button, row, col)
 
-				button = utils.create_button(on_click_handler=teleport_closure(name), text=name, style=config.ADMIN_BUTTON_STYLE)
-				self.house_buttons[button_number] = (button, name)
-				self.house_layout.addWidget(button, row, col)
-
-		self.main_layout.insertLayout(0, self.house_layout)
+		self.main_layout.insertLayout(0, self.teleport_layout)
 
 	def init_additional_ui(self):
 		self.additional_layout = QVBoxLayout()
@@ -1150,18 +1143,28 @@ class Binder(QWidget):
 		self.main_layout = QHBoxLayout()
 		self.setLayout(self.main_layout)
 
-	def handle_uncuff_button_click(self):
-		if hasattr(self, "gta_modal"):
-			if not self.gta_modal.isHidden():
-				return
-		self.gta_modal = GTAModal(modal_type="uncuff", reason="Поблизости никого нет")
+	def handle_uncuff_button_click(self) -> None:
+		"""
+		Handles the click event of the uncuff button.
+
+		Returns:
+		- None
+		"""
+		if hasattr(self, "gta_modal") and not self.gta_modal.isHidden():
+			return
+		self.gta_modal = GTAModal(modal_type="uncuff", reason=config.UNCUFF_DEFAULT_REASON)
 		self.gta_modal.show()
 
-	def handle_uo_delete_button_click(self):
-		if hasattr(self, "gta_modal"):
-			if not self.gta_modal.isHidden():
-				return
-		self.gta_modal = GTAModal(modal_type="uo_delete")
+	def handle_uo_delete_button_click(self) -> None:
+		"""
+		Handles the click event of the uo delete button.
+
+		Returns:
+		- None
+		"""
+		if hasattr(self, "gta_modal") and not self.gta_modal.isHidden():
+			return
+		self.gta_modal: GTAModal = GTAModal(modal_type="uo_delete")
 		self.gta_modal.show()
 
 	def handle_punish_button_click(self, punish_type: str | None = None):
@@ -1170,9 +1173,8 @@ class Binder(QWidget):
 			return self.modal.show()
 		for button, button_punish_type, punish_time, punish_reason in self.violation_buttons.values():
 			if button is self.sender():
-				if hasattr(self, "gta_modal"):
-					if not self.gta_modal.isHidden():
-						return
+				if hasattr(self, "gta_modal") and not self.gta_modal.isHidden():
+					return
 				self.modal = GTAModal(modal_type=button_punish_type, time=punish_time, reason=punish_reason)
 				return self.modal.show()
 
@@ -1189,10 +1191,16 @@ class Binder(QWidget):
 		mouse.move(position)
 		self.update_click_data()
 
+	def handle_teleport_button_click(self, text_to_copy=None):
+		text_to_copy = text_to_copy or next(coords for button, coords in self.teleport_buttons.values() if button is self.sender())
+		position = mouse.get_position()
+		paste_to_console(f"tpc {text_to_copy}")
+		mouse.click((LEFT+370, TOP+365))
+		mouse.move(position)
+
 	def handle_car_sync_button_click(self):
-		if hasattr(self, "car_sync_modal"):
-			if not self.car_sync_modal.isHidden():
-				return
+		if hasattr(self, "car_sync_modal") and not self.car_sync_modal.isHidden():
+			return
 		self.car_sync_modal = GTAModal(modal_type="car_sync")
 		self.car_sync_modal.show()
 
@@ -1214,8 +1222,7 @@ class Binder(QWidget):
 		if layout is not None:
 			while layout.count():
 				item = layout.takeAt(0)
-				widget = item.widget()
-				if widget:
+				if widget := item.widget():
 					widget.setParent(None)
 				else:
 					cls.clear_layout(item.layout())
@@ -1234,49 +1241,15 @@ class Binder(QWidget):
 				del self.report_buttons_widget
 
 
-	def teleport_to_house(self, name):
-		house_number = name.split('.')[0]
-		paste_to_console(f"family_house_info {house_number}")
-		time.sleep(0.1)
-		mouse.click(TELEPORT_TO_HOUSE)
-
-
 	def update_buttons(self):
 		if self.x() != LEFT+1000 or self.y() != TOP+4:
 			self.setFixedSize(WINDOW_WIDTH-1000, 400)
 			self.move(LEFT+1000, TOP+4)
-		is_console_open = all(utils.is_within_range(utils.get_pixel_color(*coord, LEFT=LEFT, TOP=TOP), color) for coord, color in pixel_conditions["should_show_violation_buttons"].items())
-		is_report_open = all(utils.is_within_range(utils.get_pixel_color(*coord, LEFT=LEFT, TOP=TOP), color) for coord, color in pixel_conditions["should_show_report_buttons"].items())
-		is_teleport_open = all(utils.is_within_range(utils.get_pixel_color(*coord, LEFT=LEFT, TOP=TOP), color) for coord, color in pixel_conditions["should_show_teleport_buttons"].items())
-		is_panel_open = all(utils.is_within_range(utils.get_pixel_color(*coord, LEFT=LEFT, TOP=TOP), color) for coord, color in pixel_conditions["should_show_control_buttons"].items())
 
-		if is_console_open and not self.is_violation_ui:
-			self.is_violation_ui = True
-			self.init_violations_ui()
-		elif not is_console_open and self.is_violation_ui:
-			self.is_violation_ui = False
-			self.clear_layout(self.violation_buttons_layout)
-
-		if is_report_open and not self.is_report_ui:
-			self.is_report_ui = True
-			self.init_reports_ui()
-		elif not is_report_open and self.is_report_ui:
-			self.is_report_ui = False
-			self.clear_layout(self.report_buttons_layout)
-
-		if is_teleport_open and not self.is_teleport_ui:
-			self.is_teleport_ui = True
-			self.init_house_ui()
-		elif not is_teleport_open and self.is_teleport_ui:
-			self.is_teleport_ui = False
-			self.clear_layout(self.house_layout)
-
-		if is_panel_open and not self.is_additional_ui:
-			self.is_additional_ui = True
-			self.init_additional_ui()
-		elif not is_panel_open and self.is_additional_ui:
-			self.is_additional_ui = False
-			self.clear_layout(self.additional_layout)
+		self.is_violation_ui = self.toggle_ui("console_tab", self.is_violation_ui, self.init_violations_ui, getattr(self, "violation_buttons_layout", None))
+		self.is_report_ui = self.toggle_ui("reports_tab", self.is_report_ui, self.init_reports_ui, getattr(self, "report_buttons_layout", None))
+		self.is_teleport_ui = self.toggle_ui("teleport_tab", self.is_teleport_ui, self.init_teleport_ui, getattr(self, "teleport_layout", None))
+		self.is_additional_ui = self.toggle_ui("admin_panel", self.is_additional_ui, self.init_additional_ui, getattr(self, "additional_layout", None))
 
 	def start_window(self):
 		self.show()
@@ -1292,6 +1265,29 @@ class Binder(QWidget):
 		self.update_report_labels()
 
 
+	def toggle_ui(self,  tab_name: str, is_ui: bool, init_ui_func: Callable[[], None], layout: QGridLayout) -> bool:
+		"""
+		Toggles the UI for the given tab.
+
+		Args:
+		- tab_name (str): The name of the tab to toggle.
+		- is_ui (bool): Whether the UI is currently open or not.
+		- init_ui_func (Callable[[], None]): The function to initialize the UI.
+		- layout (QGridLayout): The layout to clear if the UI is closed.
+
+		Returns:
+		- bool: Whether the UI is currently open or not.
+		"""
+		is_open = utils.is_tab_open(tab_name, RIGHT, BOTTOM, LEFT, TOP)
+		if is_open and not is_ui:
+			is_ui = True
+			init_ui_func()
+		elif not is_open and is_ui:
+			is_ui = False
+			self.clear_layout(layout)
+		return is_ui
+
+
 def paste_to_console(text: str):
 	mouse.click((LEFT+55, TOP+375))
 	time.sleep(0.1)
@@ -1301,23 +1297,40 @@ def paste_to_console(text: str):
 	keyboard.send('ctrl+v')
 	keyboard.send('enter')
 
-def create_control_layout(instance):
+def create_header_layout(instance: MainApp | Binder, title: str | None = None) -> QHBoxLayout:
+	"""
+	Creates a horizontal layout for the application controls.
+
+	Args:
+	- instance (MainApp | Binder): The instance of the main application or binder.
+
+	Returns:
+	- QHBoxLayout: The layout containing the minimize and close buttons.
+	"""
+	header_layout = QHBoxLayout()
+	header_title = utils.create_label(text=title, style=config.WINDOW_HEADER_STYLE)
 	control_layout = QHBoxLayout()
-	minimize_button = utils.create_button(on_click_handler=instance.showMinimized, icon_name='minimize.svg', style=config.CONTROL_BUTTONS_STYLE)
-	close_button = utils.create_button(on_click_handler=instance.close_app if isinstance(instance, MainApp) else instance.close, icon_name='delete.svg', style=config.CONTROL_BUTTONS_STYLE)
+	minimize_button = utils.create_button(on_click_handler=instance.showMinimized, icon_name='minimize', style=config.CONTROL_BUTTONS_STYLE)
+	close_button = utils.create_button(on_click_handler=instance.close_app if isinstance(instance, MainApp) else instance.close, icon_name='delete', style=config.CONTROL_BUTTONS_STYLE)
+	if isinstance(instance, MainApp):
+		control_layout.addWidget(instance.about_button)
 	control_layout.addWidget(minimize_button)
 	control_layout.addWidget(close_button)
 	control_layout.setAlignment(Qt.AlignmentFlag.AlignRight)
-	return control_layout
+	header_layout.addWidget(header_title)
+	header_layout.addLayout(control_layout)
+	return header_layout
 
 def autologin():
 	secret_file = utils.load_secret_config()
 	pyperclip.copy("/alogin13")
 	keyboard.send('t')
-	time.sleep(0.5)
+	time.sleep(1)
+	keyboard.send('ctrl+a')
 	keyboard.send('ctrl+v')
+	time.sleep(1)
 	keyboard.send('enter')
-	time.sleep(0.5)
+	time.sleep(1)
 	try:
 		keyboard.send('asciitilde')
 	except ValueError:

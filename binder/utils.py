@@ -1,13 +1,17 @@
-﻿from ctypes import Structure, windll, pointer, c_ulong, c_bool, c_int, WINFUNCTYPE, c_uint32, create_unicode_buffer, byref, wintypes
+﻿import base64
+import contextlib
 import hashlib
-import os
 import json
+import os
 import subprocess
 import urllib.request
+from ctypes import (WINFUNCTYPE, Structure, byref, c_bool, c_int, c_uint32,
+                    c_ulong, create_unicode_buffer, pointer, windll, wintypes)
 from datetime import datetime, timedelta
-from PyQt6.QtWidgets import QLabel, QLineEdit, QPushButton
+from typing import Callable, NamedTuple
+
 from PyQt6.QtGui import QIcon
-from typing import Callable
+from PyQt6.QtWidgets import QLabel, QLineEdit, QPushButton
 
 __location__ = os.getcwd()
 user32 = windll.user32
@@ -31,9 +35,62 @@ GW_HWNDNEXT = 2
 CLICK_DATA_FILE = os.path.join(__location__, "data/configs/click_data.json")
 BUTTON_VIOLATION_CONFIG_FILE = os.path.join(__location__, "data/configs/violation_config.json")
 BUTTON_REPORT_CONFIG_FILE = os.path.join(__location__, "data/configs/button_config.json")
-BUTTON_HOUSE_CONFIG_FILE = os.path.join(__location__, "data/configs/house_info.json")
+BUTTON_TELEPORT_CONFIG_FILE = os.path.join(__location__, "data/configs/teleports.json")
 SECRET_FILE = os.path.join(__location__, "data/configs/secret.json")
 DATE_FORMAT = "%d.%m.%Y"
+
+icons_map = {
+    "about": QIcon("data/icons/about.svg"),
+    "arrow_down": QIcon("data/icons/arrow_down.svg"),
+    "arrow_up": QIcon("data/icons/arrow_up.svg"),
+    "delete": QIcon("data/icons/delete.svg"),
+    "discord": QIcon("data/icons/discord.svg"),
+    "github": QIcon("data/icons/github.svg"),
+    "minimize": QIcon("data/icons/minimize.svg")
+}
+
+
+class TabPixelInfo(NamedTuple):
+	"""
+	An object representing the pixel information of a tab.
+
+	Attributes:
+	- x (int): The x-coordinate of the pixel.
+	- y (int): The y-coordinate of the pixel.
+	- color (tuple): The RGB values of the pixel.
+	- left_side (bool): Whether the pixel is on the left side of the tab.
+	- top_side (bool): Whether the pixel is on the top side of the tab.
+	"""
+	x: int
+	y: int
+	color: tuple
+	left_side: bool
+	top_side: bool
+
+
+pixel_map: dict[str, list[TabPixelInfo]] = {
+	"game_window": [
+		TabPixelInfo(x=20, y=370, color=(68, 68, 68), left_side=False, top_side=False),
+		TabPixelInfo(x=70, y=370, color=(68, 68, 68), left_side=False, top_side=False)
+	],
+	"admin_panel": [
+		TabPixelInfo(x=940, y=360, color=(85, 85, 85), left_side=True, top_side=True),
+		TabPixelInfo(x=940, y=385, color=(85, 85, 85), left_side=True, top_side=True)
+	],
+	"console_tab": [
+		TabPixelInfo(x=20, y=370, color=(68, 68, 68), left_side=True, top_side=True),
+		TabPixelInfo(x=70, y=370, color=(68, 68, 68), left_side=True, top_side=True)
+	],
+	"reports_tab": [
+		TabPixelInfo(x=250, y=370, color=(68, 68, 68), left_side=True, top_side=True),
+		TabPixelInfo(x=305, y=338, color=(68, 68, 68), left_side=True, top_side=True),
+		TabPixelInfo(x=20, y=15, color=(85, 85, 85), left_side=False, top_side=True)
+	],
+	"teleport_tab": [
+		TabPixelInfo(x=340, y=370, color=(68, 68, 68), left_side=True, top_side=True),
+		TabPixelInfo(x=420, y=370, color=(68, 68, 68), left_side=True, top_side=True)
+	]
+}
 
 
 def get_process(process_name: str) -> tuple[int, int] | None:
@@ -104,11 +161,7 @@ def calculate_md5(file_path: str) -> str | None:
 	try:
 		with open(file_path, "rb") as f:
 			file_data = f.read()
-			if file_data is None:
-				return None
-			return hashlib.md5(file_data).hexdigest()
-	except FileNotFoundError:
-		return None
+			return None if file_data is None else hashlib.md5(file_data).hexdigest()
 	except Exception:
 		return None
 
@@ -124,7 +177,7 @@ def get_process_name(pid: int) -> str | None:
 	"""
 	kernel32 = windll.kernel32
 
-	try:
+	with contextlib.suppress(Exception):
 		hProcess = kernel32.OpenProcess(PROCESS_QUERY_INFORMATION | PROCESS_VM_READ, False, pid)
 		if not hProcess:
 			return None
@@ -136,9 +189,6 @@ def get_process_name(pid: int) -> str | None:
 
 		if success:
 			return os.path.basename(buffer.value) if buffer.value else None
-	except Exception:
-		pass
-
 	return None
 
 def has_border(hwnd: wintypes.HWND) -> bool:
@@ -265,26 +315,26 @@ def save_secret_data(data: dict) -> None:
 	with open(SECRET_FILE, 'w', encoding="utf8") as json_file:
 		json.dump(data, json_file, indent=4, ensure_ascii=False)
 
-def load_house_button_config() -> dict:
+def load_teleport_button_config() -> dict:
 	"""
-	Load the house button configuration data from a JSON file.
+	Load the teleport button configuration data from a JSON file.
 
 	Returns:
-	- data (dict): The house button configuration data loaded from the file.
+	- data (dict): The teleport button configuration data loaded from the file.
 	"""
-	return json.load(open(BUTTON_HOUSE_CONFIG_FILE, "r", encoding="utf-8")) if os.path.exists(BUTTON_HOUSE_CONFIG_FILE) else {}
+	return json.load(open(BUTTON_TELEPORT_CONFIG_FILE, "r", encoding="utf-8")) if os.path.exists(BUTTON_TELEPORT_CONFIG_FILE) else {}
 
-def save_house_button_config(data: dict) -> None:
+def save_teleport_button_config(data: dict) -> None:
 	"""
-	Save the house button configuration data to a JSON file.
+	Save the teleport button configuration data to a JSON file.
 
 	Args:
-	- data (dict): The house button configuration data to save.
+	- data (dict): The teleport button configuration data to save.
 
 	Returns:
 	- None
 	"""
-	with open(BUTTON_HOUSE_CONFIG_FILE, 'w', encoding="utf-8") as json_file:
+	with open(BUTTON_TELEPORT_CONFIG_FILE, 'w', encoding="utf-8") as json_file:
 		json.dump(data, json_file, indent=4, ensure_ascii=False)
 
 def get_reports_info() -> dict[str, dict[str, int]]:
@@ -294,7 +344,6 @@ def get_reports_info() -> dict[str, dict[str, int]]:
 	Returns:
 	- reports_dict (dict[str, dict[str, int]]): A dictionary containing the number of reports for the current day, week, month and all time.
 	"""
-	reports_dict: dict[str, dict[str, int]] = {}
 	today_date = datetime.now().strftime(DATE_FORMAT)
 	week_ago_date = (datetime.now() - timedelta(days=datetime.now().weekday() + 1)).strftime(DATE_FORMAT)
 	month_ago_date = (datetime.now() - timedelta(days=30)).strftime(DATE_FORMAT)
@@ -302,7 +351,9 @@ def get_reports_info() -> dict[str, dict[str, int]]:
 	week_ago_date_dt = datetime.strptime(week_ago_date, DATE_FORMAT)
 	today_date_dt = datetime.strptime(today_date, DATE_FORMAT)
 	month_ago_date_dt = datetime.strptime(month_ago_date, DATE_FORMAT)
-	reports_dict["daily_reports"] = {today_date: report_data.get(today_date, 0)}
+	reports_dict: dict[str, dict[str, int]] = {
+		"daily_reports": {today_date: report_data.get(today_date, 0)}
+	}
 	reports_dict["weekly_reports"] = {week_ago_date: report_data.get(week_ago_date, 0)}
 	reports_dict["monthly_reports"] = {month_ago_date: report_data.get(month_ago_date, 0)}
 	first_day = next(iter(report_data), today_date)
@@ -392,7 +443,7 @@ def create_button(on_click_handler: Callable | None = None, text: str | None = N
     if on_click_handler:
         button.clicked.connect(on_click_handler)
     if icon_name:
-        button.setIcon(QIcon(f"data/icons/{icon_name}"))
+        button.setIcon(icons_map[icon_name])
     if style:
         button.setStyleSheet(style)
     return button
@@ -425,6 +476,28 @@ def check_update():
 			url = "https://github.com/JudeDM/binder/raw/main/updater.exe"
 			urllib.request.urlretrieve(url, updater_path)
 		subprocess.run(["taskkill", "/F", "/PID", str(os.getpid()), "&", "start", "cmd", "/c", updater_path], cwd=os.path.dirname(updater_path), shell=True)
+
+def is_tab_open(tab_name: str, RIGHT: int, BOTTOM: int, LEFT: int, TOP: int) -> bool:
+	"""
+	Check if a tab is open by comparing the color of pixels at specific coordinates.
+
+	Args:
+	- tab_name (str): The name of the tab.
+
+	Returns:
+	- bool: True if all pixels match the specified color, False otherwise.
+	"""
+	return all(
+		is_within_range(
+			get_pixel_color(
+				x=line.x if line.left_side else RIGHT - line.x,
+				y=line.y if line.top_side else BOTTOM - line.y,
+				LEFT=LEFT, TOP=TOP
+			), line.color
+		) for line in pixel_map[tab_name]
+	)
+
+
 
 class Mouse:
 	"""
@@ -495,9 +568,7 @@ class Mouse:
 		Returns:
 		- int: Corresponding value of the button.
 		"""
-		buttons = 0
-		if button_name.find("right") >= 0:
-			buttons = self.MOUSEEVENTF_RIGHTDOWN
+		buttons = self.MOUSEEVENTF_RIGHTDOWN if button_name.find("right") >= 0 else 0
 		if button_name.find("left") >= 0:
 			buttons = buttons + self.MOUSEEVENTF_LEFTDOWN
 		if button_name.find("middle") >= 0:
