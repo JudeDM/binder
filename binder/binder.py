@@ -1,4 +1,4 @@
-import os
+﻿import os
 import subprocess
 import sys
 import threading
@@ -65,7 +65,7 @@ class Notification(QMessageBox):
 class MainApp(QDialog):
 	def __init__(self):
 		super(MainApp, self).__init__()
-		utils.check_update()
+		# utils.check_update()
 		self.binder_running = False
 		self.setWindowTitle('Настройки')
 		self.setWindowFlags(Qt.WindowType.FramelessWindowHint)
@@ -1102,10 +1102,10 @@ class Binder(QWidget):
 	def init_reports_counter(self):
 		self.reports_counter = QVBoxLayout()
 		self.reports_counter.setSpacing(5)
-		title = utils.create_label(text="Статистика:", style=config.ADMIN_BUTTON_STYLE)
+		title = utils.create_label(text="Статистика за:", style=config.ADMIN_BUTTON_STYLE)
 		title.setAlignment(Qt.AlignmentFlag.AlignTop | Qt.AlignmentFlag.AlignHCenter)
 		self.reports_counter.addWidget(title)
-		labels = ["За день:", "За неделю:", "За месяц:"]
+		labels = ["день:", "неделю:", "месяц:"]
 		for label_text in labels:
 			label = utils.create_label(text=label_text, style=config.ADMIN_BUTTON_STYLE)
 			label.setAlignment(Qt.AlignmentFlag.AlignTop | Qt.AlignmentFlag.AlignHCenter)

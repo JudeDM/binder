@@ -84,7 +84,7 @@ pixel_map: dict[str, list[TabPixelInfo]] = {
 	"reports_tab": [
 		TabPixelInfo(x=250, y=370, color=(68, 68, 68), left_side=True, top_side=True),
 		TabPixelInfo(x=305, y=338, color=(68, 68, 68), left_side=True, top_side=True),
-		TabPixelInfo(x=20, y=15, color=(85, 85, 85), left_side=False, top_side=True)
+		TabPixelInfo(x=100, y=15, color=(85, 85, 85), left_side=False, top_side=True)
 	],
 	"teleport_tab": [
 		TabPixelInfo(x=340, y=370, color=(68, 68, 68), left_side=True, top_side=True),

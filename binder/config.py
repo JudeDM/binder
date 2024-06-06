@@ -129,6 +129,12 @@ ADMIN_BUTTON_STYLE = """
 		font-size: 20px;
 	}"""
 
+ADMIN_STATS_STYLE = """
+    color: #ffffff;
+    font-family: "Arial";
+    font-size: 17px;
+    font-weight: 600;
+"""
 
 
 #MAIN APP STYLE
