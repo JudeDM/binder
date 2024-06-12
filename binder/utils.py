@@ -1,15 +1,15 @@
-﻿import base64
-import contextlib
+﻿import contextlib
 import hashlib
 import json
 import os
 import subprocess
 import urllib.request
 from ctypes import (WINFUNCTYPE, Structure, byref, c_bool, c_int, c_uint32,
-                    c_ulong, create_unicode_buffer, pointer, windll, wintypes)
+					c_ulong, create_unicode_buffer, pointer, windll, wintypes)
 from datetime import datetime, timedelta
 from typing import Callable, NamedTuple
 
+from PyQt6.QtCore import QSize
 from PyQt6.QtGui import QIcon
 from PyQt6.QtWidgets import QLabel, QLineEdit, QPushButton
 
@@ -40,13 +40,15 @@ SECRET_FILE = os.path.join(__location__, "data/configs/secret.json")
 DATE_FORMAT = "%d.%m.%Y"
 
 icons_map = {
-    "about": QIcon("data/icons/about.svg"),
-    "arrow_down": QIcon("data/icons/arrow_down.svg"),
-    "arrow_up": QIcon("data/icons/arrow_up.svg"),
-    "delete": QIcon("data/icons/delete.svg"),
-    "discord": QIcon("data/icons/discord.svg"),
-    "github": QIcon("data/icons/github.svg"),
-    "minimize": QIcon("data/icons/minimize.svg")
+	"about": QIcon("data/icons/about.svg"),
+	"arrow_down": QIcon("data/icons/arrow_down.svg"),
+	"arrow_up": QIcon("data/icons/arrow_up.svg"),
+	"delete": QIcon("data/icons/delete.svg"),
+	"discord": QIcon("data/icons/discord.svg"),
+	"github": QIcon("data/icons/github.svg"),
+	"minimize": QIcon("data/icons/minimize.svg"),
+	"visible": QIcon("data/icons/visibility_on.svg"),
+	"invisible": QIcon("data/icons/visibility_off.svg")
 }
 
 
@@ -425,28 +427,29 @@ def create_label(text: str | None = None, style: str | None = None) -> QLabel:
 	return label
 
 def create_button(on_click_handler: Callable | None = None, text: str | None = None, icon_name: str | None = None, style: str | None = None) -> QPushButton:
-    """
-    Create a QPushButton widget with optional text, click handler, icon and style.
+	"""
+	Create a QPushButton widget with optional text, click handler, icon and style.
 
-    Args:
-    - on_click_handler (Callable | None): The function to call when the button is clicked.
-    - text (str | None): The text to initialize the QPushButton with.
-    - icon_name (str | None): The name of the icon to set for the button.
-    - style (str | None): The style sheet to apply to the QPushButton.
+	Args:
+	- on_click_handler (Callable | None): The function to call when the button is clicked.
+	- text (str | None): The text to initialize the QPushButton with.
+	- icon_name (str | None): The name of the icon to set for the button.
+	- style (str | None): The style sheet to apply to the QPushButton.
 
-    Returns:
-    - QPushButton: The created QPushButton widget.
-    """
-    button: QPushButton = QPushButton()
-    if text:
-        button.setText(text)
-    if on_click_handler:
-        button.clicked.connect(on_click_handler)
-    if icon_name:
-        button.setIcon(icons_map[icon_name])
-    if style:
-        button.setStyleSheet(style)
-    return button
+	Returns:
+	- QPushButton: The created QPushButton widget.
+	"""
+	button: QPushButton = QPushButton()
+	if text:
+		button.setText(text)
+	if on_click_handler:
+		button.clicked.connect(on_click_handler)
+	if icon_name:
+		button.setIcon(icons_map[icon_name])
+		button.setIconSize(QSize(16, 16))
+	if style:
+		button.setStyleSheet(style)
+	return button
 
 def is_within_range(color1: tuple[int, int, int], color2: tuple[int, int, int], tolerance: int = 5) -> bool:
 	"""

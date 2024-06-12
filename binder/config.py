@@ -144,6 +144,21 @@ MAIN_APP_CONTROL_BUTTON_STYLE = f"""
     color: {TEXT_COLOR};
     background-color: {BORDER_COLOR};
     border: 2px solid {BORDER_COLOR};
+    margin-top: 20px;
+"""
+MAIN_APP_PASSWORD_VISIBILITY_BUTTON_STYLE = f"""
+    border: none;
+    font-size: 15px;
+    font-weight: 600;
+    color: {TEXT_COLOR};
+    background-color: {LINE_BACKGROUND_COLOR};
+    border: 2px solid {BORDER_COLOR};
+    border-left: 0px;
+    min-height: 22px;
+    min-width: 22px;
+    max-height: 22px;
+    max-width: 22px;
+    padding-left: 10px;
 """
 MAIN_APP_FOOTER_BUTTON_STYLE = f"""
     margin-top: 5px;
@@ -170,7 +185,14 @@ MAIN_APP_LINE_STYLE = f"""
     background-color: {LINE_BACKGROUND_COLOR};
     border: 2px solid {BORDER_COLOR};
 """
-
+MAIN_APP_PASSOWRD_LINE_STYLE = f"""
+    font-size: 15px;
+    font-weight: 600;
+    color: {TEXT_COLOR};
+    background-color: {LINE_BACKGROUND_COLOR};
+    border: 2px solid {BORDER_COLOR};
+    border-right: 0px;
+"""
 
 # GTA MODAL STYLE
 GTA_MODAL_TITLE_STYLE = """
@@ -215,9 +237,25 @@ GTA_MODAL_FOOTER_BACKGROUND_COLOR_STYLE = "background-color: #1e2327"
 
 
 # SETTINGS STYLE
-SETTINGS_BUTTON_STYLE = """
+SETTINGS_HEADER_TABS_BUTTONS_STYLE = f"""
+    font-weight: 500;
+    font-size: 15px;
+    color: {TEXT_COLOR};
+    background-color: {LINE_BACKGROUND_COLOR};
+    border: 2px solid {BORDER_COLOR};
+"""
+SETTINGS_REORDER_BUTTON_STYLE = """
+    min-height: 12px;
+    min-width: 12px;
+    max-height: 12px;
+    max-width: 12px;
+    border: none;
+"""
+SETTINGS_DELETE_BUTTON_STYLE = """
     min-height: 30px;
     min-width: 30px;
+    max-height: 30px;
+    max-width: 30px;
     border: none;
 """
 
