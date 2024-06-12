@@ -1,20 +1,20 @@
 {
 	"hashes": {
-		"Binder.exe": "5852C6995BC4ED8AB1D474D9BB21EE25",
-		"data/icons/about.svg": "E583FBA29D79D2ECBB3445F47C3FC508",
-		"data/icons/arrow_down.svg": "44FFC7314A7D5612A7A28BDF012AFB1D",
-		"data/icons/arrow_up.svg": "8F1F07754C5A385359BB581877631A4B",
-		"data/icons/delete.svg": "74F92D0475AE30BFEB99C4F69CD5B26C",
-		"data/icons/discord.svg": "7C0A515C909EEEFF9F5CB6D3FA9CB0E2",
-		"data/icons/github.svg": "B4A2866D8E9047EB6878E80C7FDE2254",
-		"data/icons/minimize.svg": "6F7D021E4AB1C2A92939BC3FD661C9A4",
-		"data/icons/visibility_off.svg": "B4B06A68BC0AF7BE946522054F7B0B26",
-		"data/icons/visibility_on.svg": "35B6359D6913006B59CB49F485F35C92"
+		"Binder.exe": "5852c6995bc4ed8ab1d474d9bb21ee25",
+		"data/icons/about.svg": "e583fba29d79d2ecbb3445f47c3fc508",
+		"data/icons/arrow_down.svg": "44ffc7314a7d5612a7a28bdf012afb1d",
+		"data/icons/arrow_up.svg": "8f1f07754c5a385359bb581877631a4b",
+		"data/icons/delete.svg": "74f92d0475ae30bfeb99c4f69cd5b26c",
+		"data/icons/discord.svg": "7c0a515c909eeeff9f5cb6d3fa9cb0e2",
+		"data/icons/github.svg": "b4a2866d8e9047eb6878e80c7fde2254",
+		"data/icons/minimize.svg": "6f7d021e4ab1c2a92939bc3fd661c9a4",
+		"data/icons/visibility_off.svg": "b4b06a68bc0af7be946522054f7b0b26",
+		"data/icons/visibility_on.svg": "35b6359d6913006b59cb49f485f35c92"
 	},
 	"files": [
 		"data/configs/button_config.json",
 		"data/configs/teleports.json",
 		"data/configs/violation_config.json"
 	],
-	"last_updated": "1718204944"
+	"last_updated": "1718194860"
 }
