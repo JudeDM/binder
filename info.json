@@ -1,18 +1,20 @@
 {
 	"hashes": {
-		"Binder.exe": "68be285c927e814b487db6045e0cd92f",
-		"data/icons/about.svg": "ff931b44ae4ca61a52b7b9a028c14223",
-		"data/icons/arrow_down.svg": "4e9eaa7e61a6153562951ce9d2ac986a",
-		"data/icons/arrow_up.svg": "9cc12fe279edda63f52c99d8e89d1b21",
-		"data/icons/delete.svg": "0167535645d16da81773db46b9e1e45f",
-		"data/icons/discord.svg": "f4df36ab76d3728ad345488386830267",
-		"data/icons/github.svg": "edf818ee91a636554d69783c62090afc",
-		"data/icons/minimize.svg": "36dc01971a4859482826c7951c65eaff"
+		"Binder.exe": "5852C6995BC4ED8AB1D474D9BB21EE25",
+		"data/icons/about.svg": "E583FBA29D79D2ECBB3445F47C3FC508",
+		"data/icons/arrow_down.svg": "44FFC7314A7D5612A7A28BDF012AFB1D",
+		"data/icons/arrow_up.svg": "8F1F07754C5A385359BB581877631A4B",
+		"data/icons/delete.svg": "74F92D0475AE30BFEB99C4F69CD5B26C",
+		"data/icons/discord.svg": "7C0A515C909EEEFF9F5CB6D3FA9CB0E2",
+		"data/icons/github.svg": "B4A2866D8E9047EB6878E80C7FDE2254",
+		"data/icons/minimize.svg": "6F7D021E4AB1C2A92939BC3FD661C9A4",
+		"data/icons/visibility_off.svg": "B4B06A68BC0AF7BE946522054F7B0B26",
+		"data/icons/visibility_on.svg": "35B6359D6913006B59CB49F485F35C92"
 	},
 	"files": [
 		"data/configs/button_config.json",
 		"data/configs/teleports.json",
 		"data/configs/violation_config.json"
 	],
-	"last_updated": "1717686452"
+	"last_updated": "1718204944"
 }
