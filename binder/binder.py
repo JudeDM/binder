@@ -1,7 +1,6 @@
 ﻿import os
 import subprocess
 import sys
-import threading
 import time
 import webbrowser
 from datetime import datetime
@@ -10,11 +9,11 @@ from typing import Callable
 
 import keyboard
 import pyperclip
-from PyQt6.QtCore import Qt, QTimer
+from PyQt6.QtCore import Qt, QTimer, QThread, pyqtSignal
 from PyQt6.QtGui import QColor, QMouseEvent, QPalette
 from PyQt6.QtWidgets import (QApplication, QComboBox, QDialog, QFormLayout,
-                             QGridLayout, QHBoxLayout, QLineEdit, QMessageBox,
-                             QScrollArea, QScrollBar, QVBoxLayout, QWidget)
+							 QGridLayout, QHBoxLayout, QLineEdit, QMessageBox,
+							 QScrollArea, QScrollBar, QVBoxLayout, QWidget, QToolTip)
 
 import config
 import utils
@@ -66,10 +65,11 @@ class MainApp(QDialog):
 	def __init__(self):
 		super(MainApp, self).__init__()
 		utils.check_update()
+		self.dragging = False
 		self.binder_running = False
 		self.setWindowTitle('Настройки')
 		self.setWindowFlags(Qt.WindowType.FramelessWindowHint)
-		self.setStyleSheet(config.BACKGROUND_COLOR_STYLE)
+		self.setStyleSheet(config.MAIN_APP_STYLE)
 		self.setup_labels_and_edits()
 		self.setup_buttons()
 		self.init_ui()
@@ -79,36 +79,45 @@ class MainApp(QDialog):
 		Handles the mouse press event.
 
 		Args:
-			event (QMouseEvent): The mouse event.
+		- event (QMouseEvent): The mouse event.
 
 		Returns:
-			None
+		- None
 		"""
-		if event is None:
-			raise ValueError("Event cannot be None")
-		self.dragPos = event.globalPosition()
-		if self.dragPos is None:
-			raise ValueError("Drag position cannot be None")
-		self.dragPos = self.dragPos.toPoint()
+		if event.button() == Qt.MouseButton.LeftButton:
+			self.dragPos = event.globalPosition().toPoint()
+			self.dragging = True
 
 	def mouseMoveEvent(self, event: QMouseEvent) -> None:
 		"""
 		Moves the window when dragging the mouse.
 
 		Args:
-			event (QMouseEvent): The mouse event.
+		- event (QMouseEvent): The mouse event.
 
 		Returns:
-			None
+		- None
 		"""
-		if event is None or not hasattr(self, 'dragPos'):
+		if not self.dragging:
 			return
-		drag_pos = event.globalPosition().toPoint()
-		if drag_pos is None:
-			raise ValueError("Drag position cannot be None")
-		self.move(self.pos() + drag_pos - self.dragPos)
-		self.dragPos = drag_pos
-		event.accept()
+		
+		if event.buttons() == Qt.MouseButton.LeftButton:
+			drag_pos = event.globalPosition().toPoint()
+			self.move(self.pos() + drag_pos - self.dragPos)
+			self.dragPos = drag_pos
+
+	def mouseReleaseEvent(self, event: QMouseEvent) -> None:
+		"""
+		Handles the mouse release event.
+
+		Args:
+		- event (QMouseEvent): The mouse event.
+
+		Returns:
+		- None
+		"""
+		if event.button() == Qt.MouseButton.LeftButton:
+			self.dragging = False
 
 	def setup_labels_and_edits(self) -> None:
 		"""
@@ -120,12 +129,15 @@ class MainApp(QDialog):
 		secret_data = utils.load_secret_config()
 		self.id_on_launch= str(secret_data.get("id", ""))
 		password_edit = secret_data.get("password", "")
-		self.id_label = utils.create_label(text="ID на сервере:", style=config.MAIN_APP_LABEL_TEXT_STYLE)
-		self.password_label = utils.create_label(text="Админ-пароль:", style=config.MAIN_APP_LABEL_TEXT_STYLE)
+		self.id_label = utils.create_label(text="ID на сервере:")
+		self.id_label_description = utils.create_label(text="Для dimension_sync и car_sync", style=config.MAIN_APP_LABEL_DESCRIPTION_STYLE)
+		self.password_label = utils.create_label(text="Админ-пароль:")
+		self.password_label_description = utils.create_label(text="Для автовхода через F8", style=config.MAIN_APP_LABEL_DESCRIPTION_STYLE)
 		self.id_edit = utils.create_line(text=self.id_on_launch, style=config.MAIN_APP_LINE_STYLE)
 		self.password_edit = utils.create_line(text=password_edit, style=config.MAIN_APP_PASSOWRD_LINE_STYLE)
 		self.password_edit.setEchoMode(QLineEdit.EchoMode.Password)
-		self.footer_settings_label = utils.create_label(text="Изменение настроек окон:", style=config.MAIN_APP_LABEL_TEXT_STYLE)
+		self.footer_settings_label = utils.create_label(text="Изменение настроек окон:")
+
 
 	def setup_buttons(self) -> None:
 		"""
@@ -148,9 +160,17 @@ class MainApp(QDialog):
 		layout.addLayout(control_layout)
 		main_controls_layout = QVBoxLayout()
 		colomns_layout = QHBoxLayout()
+		id_label_box = QVBoxLayout()
+		id_label_box.addWidget(self.id_label)
+		id_label_box.addWidget(self.id_label_description)
+		id_label_box.setSpacing(0)
+		password_label_box = QVBoxLayout()
+		password_label_box.addWidget(self.password_label)
+		password_label_box.addWidget(self.password_label_description)
+		password_label_box.setSpacing(0)
 		labels_column = QVBoxLayout()
-		labels_column.addWidget(self.id_label)
-		labels_column.addWidget(self.password_label)
+		labels_column.addLayout(id_label_box)
+		labels_column.addLayout(password_label_box)
 		edits_column = QVBoxLayout()
 		edits_column.addWidget(self.id_edit)
 		password_edit_box = QHBoxLayout()
@@ -168,7 +188,6 @@ class MainApp(QDialog):
 		main_controls_layout.addWidget(self.toggle_binder_button)
 		input_widget = QWidget()
 		input_widget.setFixedWidth(400)
-		input_widget.setStyleSheet(config.BACKGROUND_COLOR_STYLE)
 		input_widget.setLayout(main_controls_layout)
 		layout.addWidget(input_widget)
 
@@ -456,6 +475,7 @@ class AboutWindow(QWidget):
 	def __init__(self):
 		super().__init__()
 		self.setup_ui()
+		self.dragging = False
 
 	def setup_ui(self):
 		self.setWindowTitle("Дополнительная информация")
@@ -475,7 +495,7 @@ class AboutWindow(QWidget):
 		STATS_title.setAlignment(Qt.AlignmentFlag.AlignHCenter)
 		FAQ_title = utils.create_label(text="Немного о приложении:", style=config.ABOUT_WINDOW_TITLE_STYLE)
 		FAQ_title.setAlignment(Qt.AlignmentFlag.AlignHCenter)
-		text = "F8 - Автологин.\n\nБиндер для GTA 5 RP, обеспечивающий администраторам удобство в модерировании.\nПросьба сообщать о возникающих проблемах через контактные данные, указанные ниже."
+		text = "Биндер для GTA 5 RP, обеспечивающий администраторам удобство в модерировании.\nПросьба сообщать о возникающих проблемах через контактные данные, указанные ниже."
 		FAQ_text = utils.create_label(text=text, style=config.ABOUT_WINDOW_TEXT_STYLE)
 		reports_data = utils.get_reports_info()
 		daily_reports, weekly_reports, monthly_reports, all_reports = utils.get_reports_count(reports_data=reports_data)
@@ -566,17 +586,14 @@ class AboutWindow(QWidget):
 		Handles the mouse press event.
 
 		Args:
-			event (QMouseEvent): The mouse event.
+		- event (QMouseEvent): The mouse event.
 
 		Returns:
-			None
+		- None
 		"""
-		if event is None:
-			raise ValueError("Event cannot be None")
-		self.dragPos = event.globalPosition()
-		if self.dragPos is None:
-			raise ValueError("Drag position cannot be None")
-		self.dragPos = self.dragPos.toPoint()
+		if event.button() == Qt.MouseButton.LeftButton:
+			self.dragPos = event.globalPosition().toPoint()
+			self.dragging = True
 
 	def mouseMoveEvent(self, event: QMouseEvent) -> None:
 		"""
@@ -588,19 +605,32 @@ class AboutWindow(QWidget):
 		Returns:
 			None
 		"""
-		if event is None or not hasattr(self, 'dragPos'):
+		if not self.dragging:
 			return
-		drag_pos = event.globalPosition().toPoint()
-		if drag_pos is None:
-			raise ValueError("Drag position cannot be None")
-		self.move(self.pos() + drag_pos - self.dragPos)
-		self.dragPos = drag_pos
-		event.accept()
+		
+		if event.buttons() == Qt.MouseButton.LeftButton:
+			drag_pos = event.globalPosition().toPoint()
+			self.move(self.pos() + drag_pos - self.dragPos)
+			self.dragPos = drag_pos
+
+	def mouseReleaseEvent(self, event: QMouseEvent) -> None:
+		"""
+		Handles the mouse release event.
+
+		Args:
+		- event (QMouseEvent): The mouse event.
+
+		Returns:
+		- None
+		"""
+		if event.button() == Qt.MouseButton.LeftButton:
+			self.dragging = False
 
 
 class ReporsInfoWindow(QWidget):
 	def __init__(self, period_type: int):
 		super().__init__()
+		self.dragging = False
 		self.period_type = period_type
 		self.setup_ui()
 
@@ -619,7 +649,7 @@ class ReporsInfoWindow(QWidget):
 		text_area = QVBoxLayout()
 		STATS_title = utils.create_label(text="Статистика по репортам:", style=config.ABOUT_WINDOW_TITLE_STYLE)
 		STATS_title.setAlignment(Qt.AlignmentFlag.AlignHCenter)
-		text = "	" + "	".join(f"{key} - {value}\n" for key, value in reports_data.items())
+		text = "\n".join(f"{key} - {value}" for key, value in reports_data.items())
 		text_label = utils.create_label(text=text, style=config.ABOUT_WINDOW_TEXT_STYLE)
 		text_label.setAlignment(Qt.AlignmentFlag.AlignHCenter)
 		text_area.addWidget(STATS_title)
@@ -636,16 +666,31 @@ class ReporsInfoWindow(QWidget):
 		Returns:
 		- None
 		"""
-		if event is None:
-			raise ValueError("Event cannot be None")
-		self.dragPos = event.globalPosition()
-		if self.dragPos is None:
-			raise ValueError("Drag position cannot be None")
-		self.dragPos = self.dragPos.toPoint()
+		if event.button() == Qt.MouseButton.LeftButton:
+			self.dragPos = event.globalPosition().toPoint()
+			self.dragging = True
 
 	def mouseMoveEvent(self, event: QMouseEvent) -> None:
 		"""
 		Moves the window when dragging the mouse.
+
+		Args:
+			event (QMouseEvent): The mouse event.
+
+		Returns:
+			None
+		"""
+		if not self.dragging:
+			return
+		
+		if event.buttons() == Qt.MouseButton.LeftButton:
+			drag_pos = event.globalPosition().toPoint()
+			self.move(self.pos() + drag_pos - self.dragPos)
+			self.dragPos = drag_pos
+
+	def mouseReleaseEvent(self, event: QMouseEvent) -> None:
+		"""
+		Handles the mouse release event.
 
 		Args:
 		- event (QMouseEvent): The mouse event.
@@ -653,19 +698,14 @@ class ReporsInfoWindow(QWidget):
 		Returns:
 		- None
 		"""
-		if event is None or not hasattr(self, 'dragPos'):
-			return
-		drag_pos = event.globalPosition().toPoint()
-		if drag_pos is None:
-			raise ValueError("Drag position cannot be None")
-		self.move(self.pos() + drag_pos - self.dragPos)
-		self.dragPos = drag_pos
-		event.accept()
+		if event.button() == Qt.MouseButton.LeftButton:
+			self.dragging = False
 
 
 class SettingsWindow(QDialog):
 	def __init__(self, title: str, active_window: str = "report"):
 		super().__init__()
+		self.dragging = False
 		self.setStyleSheet(config.SETTINGS_WINDOW_STYLE)
 		palette = self.palette()
 		palette.setColor(QPalette.ColorGroup.All, QPalette.ColorRole.Window, QColor(config.BACKGROUND_COLOR))
@@ -693,8 +733,8 @@ class SettingsWindow(QDialog):
 		self.main_layout.addLayout(control_layout)
 		self.main_layout.addLayout(self.header_window_buttons)
 		control_panel_layout = QHBoxLayout()
-		add_column_button = utils.create_button(on_click_handler=self.add_item, text="Добавить кнопку")
-		save_button = utils.create_button(on_click_handler=self.save_config, text="Сохранить")
+		add_column_button = utils.create_button(on_click_handler=self.add_item, text="Добавить кнопку", style=config.SETTINGS_FOOTER_BUTTONS_STYLE)
+		save_button = utils.create_button(on_click_handler=self.save_config, text="Сохранить", style=config.SETTINGS_FOOTER_BUTTONS_STYLE)
 		control_panel_layout.addWidget(add_column_button)
 		control_panel_layout.addWidget(save_button)
 		self.updateConfig()
@@ -729,39 +769,48 @@ class SettingsWindow(QDialog):
 		Handles the mouse press event.
 
 		Args:
-			event (QMouseEvent): The mouse event.
+		- event (QMouseEvent): The mouse event.
 
 		Returns:
-			None
+		- None
 		"""
-		if event is None:
-			raise ValueError("Event cannot be None")
-		self.dragPos = event.globalPosition()
-		if self.dragPos is None:
-			raise ValueError("Drag position cannot be None")
-		self.dragPos = self.dragPos.toPoint()
+		if event.button() == Qt.MouseButton.LeftButton:
+			self.dragPos = event.globalPosition().toPoint()
+			self.dragging = True
 
 	def mouseMoveEvent(self, event: QMouseEvent) -> None:
 		"""
 		Moves the window when dragging the mouse.
 
 		Args:
-			event (QMouseEvent): The mouse event.
+		- event (QMouseEvent): The mouse event.
 
 		Returns:
-			None
+		- None
 		"""
-		if event is None or not hasattr(self, 'dragPos'):
+		if not self.dragging:
 			return
-		drag_pos = event.globalPosition().toPoint()
-		if drag_pos is None:
-			raise ValueError("Drag position cannot be None")
-		self.move(self.pos() + drag_pos - self.dragPos)
-		self.dragPos = drag_pos
-		event.accept()
+		
+		if event.buttons() == Qt.MouseButton.LeftButton:
+			drag_pos = event.globalPosition().toPoint()
+			self.move(self.pos() + drag_pos - self.dragPos)
+			self.dragPos = drag_pos
+
+	def mouseReleaseEvent(self, event: QMouseEvent) -> None:
+		"""
+		Handles the mouse release event.
+
+		Args:
+		- event (QMouseEvent): The mouse event.
+
+		Returns:
+		- None
+		"""
+		if event.button() == Qt.MouseButton.LeftButton:
+			self.dragging = False
 
 	def add_item(self):
-		if len(self.config) > 200:
+		if len(self.config) > MAX_COLS*10-1:
 			return
 
 		new_item = {"name": ""}
@@ -895,7 +944,7 @@ class ViolationSettingsWindow():
 		group_layout = QVBoxLayout()
 		group_layout.setAlignment(Qt.AlignmentFlag.AlignTop | Qt.AlignmentFlag.AlignLeft)
 		type_title = utils.create_label(text="Тип:", style=config.VIOLATION_SETTINGS_SHORT_LABEL_STYLE)
-		name_title = utils.create_label(text="Название:", style=config.VIOLATION_SETTINGS_SHORT_LABEL_STYLE)
+		name_title = utils.create_label(text="Название кнопки:", style=config.SETTINGS_GAME_BOTTON_LABEL_STYLE)
 		time_title = utils.create_label(text="Время:", style=config.VIOLATION_SETTINGS_SHORT_LABEL_STYLE)
 		reason_title = utils.create_label(text="Причина:", style=config.VIOLATION_SETTINGS_LONG_LABEL_STYLE)
 		titles_layout = QHBoxLayout()
@@ -914,7 +963,7 @@ class ViolationSettingsWindow():
 			type_edit.setStyleSheet(config.VIOLATION_SETTINGS_SHORT_STYLE)
 			type_edit.setCurrentText(violation["type"] if "type" in violation else None)
 			type_edit.activated.connect(lambda index, type_edit=type_edit, violation_index=violation_index: self.update_violation_field(violation_index, "type", type_edit.currentText()))
-			name_edit = utils.create_line(text=violation["name"], style=config.VIOLATION_SETTINGS_SHORT_STYLE)
+			name_edit = utils.create_line(text=violation["name"], style=config.SETTINGS_GAME_BOTTON_LINE_STYLE)
 			name_edit.textChanged.connect(lambda text, index=violation_index: self.update_violation_field(index, "name", text))
 			time_edit = utils.create_line(text=violation["time"], style=config.VIOLATION_SETTINGS_SHORT_STYLE)
 			time_edit.textChanged.connect(lambda text, index=violation_index: self.update_violation_field(index, "time", text))
@@ -962,7 +1011,7 @@ class ReportSettingsWindow():
 	def create_report_group_layout(self, report_group, group_index):
 		group_layout = QVBoxLayout()
 		group_layout.setAlignment(Qt.AlignmentFlag.AlignTop)
-		name_title = utils.create_label(text="Название кнопки:", style=config.REPORT_SETTINGS_SHORT_LABEL_STYLE)
+		name_title = utils.create_label(text="Название кнопки:", style=config.SETTINGS_GAME_BOTTON_LABEL_STYLE)
 		text_title = utils.create_label(text="Текст ответа:", style=config.REPORT_SETTINGS_LONG_LABEL_STYLE)
 		titles_layout = QHBoxLayout()
 		titles_layout.setAlignment(Qt.AlignmentFlag.AlignLeft)
@@ -974,7 +1023,7 @@ class ReportSettingsWindow():
 			row = QHBoxLayout()
 			form_layout = QFormLayout()
 
-			name_edit = utils.create_line(text=report["name"], style=config.REPORT_SETTINGS_SHORT_STYLE)
+			name_edit = utils.create_line(text=report["name"], style=config.SETTINGS_GAME_BOTTON_LINE_STYLE)
 			text_edit = utils.create_line(text=report["text"], style=config.REPORT_SETTINGS_LONG_STYLE)
 			name_edit.textChanged.connect(lambda text, index=report_index: self.update_report_field(index, "name", text))
 			text_edit.textChanged.connect(lambda text, index=report_index: self.update_report_field(index, "text", text))
@@ -1029,7 +1078,7 @@ class TeleportSettingsWindow():
 	def create_teleport_group_layout(self, teleport_group, group_index):
 		group_layout = QVBoxLayout()
 		group_layout.setAlignment(Qt.AlignmentFlag.AlignTop)
-		name_title = utils.create_label(text="Название кнопки:", style=config.TELEPORT_SETTINGS_LABEL_STYLE)
+		name_title = utils.create_label(text="Название кнопки:", style=config.SETTINGS_GAME_BOTTON_LABEL_STYLE)
 		text_title = utils.create_label(text="Координаты:", style=config.TELEPORT_SETTINGS_LABEL_STYLE)
 		titles_layout = QHBoxLayout()
 		titles_layout.setAlignment(Qt.AlignmentFlag.AlignLeft)
@@ -1040,8 +1089,8 @@ class TeleportSettingsWindow():
 			button_index = group_index * 10 + index
 			row = QHBoxLayout()
 			form_layout = QFormLayout()
-			name_edit = utils.create_line(text=report["name"], style=config.TELEPORT_SETTINGS_SHORT_STYLE)
-			coords_edit = utils.create_line(text=report["coords"], style=config.TELEPORT_SETTINGS_SHORT_STYLE)
+			name_edit = utils.create_line(text=report["name"], style=config.SETTINGS_GAME_BOTTON_LINE_STYLE)
+			coords_edit = utils.create_line(text=report["coords"], style=config.TELEPORT_SETTINGS_COORDINATES_LINE_STYLE)
 			name_edit.textChanged.connect(lambda text, index=button_index: self.update_teleport_field(index, "name", text))
 			coords_edit.textChanged.connect(lambda text, index=button_index: self.update_teleport_field(index, "coords", text))
 			row.addWidget(name_edit)
@@ -1390,30 +1439,40 @@ def autologin():
 
 keyboard.add_hotkey('F8', autologin)
 
-def update_coordinates():
-	global WINDOW_WIDTH
-	global WINDOW_HEIGHT
-	global MAX_COLS
-	global LEFT, TOP, RIGHT, BOTTOM
-	while True:
-		process = utils.get_process("GTA5.exe")
-		if process is not None:
-			LEFT, TOP, RIGHT, BOTTOM = utils.get_window_coordinates(process[0])
-			if utils.has_border(process[0]):
-				LEFT += 8
-				TOP += 31
-				RIGHT -= 9
-				BOTTOM -= 9
-			WINDOW_WIDTH = RIGHT - LEFT
-			WINDOW_HEIGHT = BOTTOM - TOP
-			MAX_COLS = (WINDOW_WIDTH - 1170) // 163
-		time.sleep(0.5)
+class CoordinateUpdater(QThread):
+	coordinates_updated = pyqtSignal()
 
+	def __init__(self):
+		super().__init__()
+		self._running = True
+
+	def run(self):
+		global WINDOW_WIDTH, WINDOW_HEIGHT, MAX_COLS, LEFT, TOP, RIGHT, BOTTOM
+		while self._running:
+			process = utils.get_process("GTA5.exe")
+			if process is not None:
+				LEFT, TOP, RIGHT, BOTTOM = utils.get_window_coordinates(process[0])
+				if utils.has_border(process[0]):
+					LEFT += 8
+					TOP += 31
+					RIGHT -= 9
+					BOTTOM -= 9
+				WINDOW_WIDTH = RIGHT - LEFT
+				WINDOW_HEIGHT = BOTTOM - TOP
+				MAX_COLS = (WINDOW_WIDTH - 1170) // 163
+				self.coordinates_updated.emit()
+			time.sleep(0.5)
+
+	def stop(self):
+		self._running = False
+		self.wait()
+			
 if __name__ == '__main__':
 	mouse = utils.Mouse()
-	thread = threading.Thread(target=update_coordinates)
-	thread.start()
+	coordinate_updater = CoordinateUpdater()
+	coordinate_updater.start()
 	app = QApplication(sys.argv)
+	app.aboutToQuit.connect(coordinate_updater.stop)
 	main_app = MainApp()
 	main_app.show()
 	sys.exit(app.exec())

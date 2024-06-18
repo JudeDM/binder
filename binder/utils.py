@@ -9,7 +9,7 @@ from ctypes import (WINFUNCTYPE, Structure, byref, c_bool, c_int, c_uint32,
 from datetime import datetime, timedelta
 from typing import Callable, NamedTuple
 
-from PyQt6.QtCore import QSize
+from PyQt6.QtCore import QSize, Qt
 from PyQt6.QtGui import QIcon
 from PyQt6.QtWidgets import QLabel, QLineEdit, QPushButton
 
@@ -85,8 +85,7 @@ pixel_map: dict[str, list[TabPixelInfo]] = {
 	],
 	"reports_tab": [
 		TabPixelInfo(x=250, y=370, color=(68, 68, 68), left_side=True, top_side=True),
-		TabPixelInfo(x=305, y=338, color=(68, 68, 68), left_side=True, top_side=True),
-		TabPixelInfo(x=100, y=15, color=(85, 85, 85), left_side=False, top_side=True)
+		TabPixelInfo(x=305, y=338, color=(68, 68, 68), left_side=True, top_side=True)
 	],
 	"teleport_tab": [
 		TabPixelInfo(x=340, y=370, color=(68, 68, 68), left_side=True, top_side=True),
@@ -420,6 +419,7 @@ def create_label(text: str | None = None, style: str | None = None) -> QLabel:
 	- QLabel: The created QLabel widget.
 	"""
 	label = QLabel()
+	label.setTextInteractionFlags(Qt.TextInteractionFlag.TextSelectableByMouse)
 	if text is not None:
 		label.setText(str(text))
 	if style is not None:
@@ -499,7 +499,6 @@ def is_tab_open(tab_name: str, RIGHT: int, BOTTOM: int, LEFT: int, TOP: int) -> 
 			), line.color
 		) for line in pixel_map[tab_name]
 	)
-
 
 
 class Mouse:
