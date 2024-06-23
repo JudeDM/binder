@@ -1,4 +1,4 @@
-﻿import os
+import os
 import subprocess
 import sys
 import time
@@ -1466,7 +1466,17 @@ class CoordinateUpdater(QThread):
 	def stop(self):
 		self._running = False
 		self.wait()
-			
+
+
+def my_excepthook(type, value, tback):
+	QMessageBox.critical(
+			main_app, "Ошибка", f"{str(value)}\n\nПросьба сообщить об ошибке в дискдорд: JudeDM",
+			QMessageBox.StandardButton.Close
+		)
+	sys.__excepthook__(type, value, tback)
+ 
+sys.excepthook = my_excepthook	
+
 if __name__ == '__main__':
 	mouse = utils.Mouse()
 	coordinate_updater = CoordinateUpdater()
