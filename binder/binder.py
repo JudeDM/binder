@@ -2,6 +2,7 @@ import os
 import subprocess
 import sys
 import time
+import traceback
 import webbrowser
 from datetime import datetime
 from enum import Enum
@@ -390,6 +391,7 @@ class GTAModal(QWidget):
 		else:
 			send_button = utils.create_button(on_click_handler=self.close, text="Отправить", style=config.GTA_MODAL_SEND_BUTTON_STYLE)
 		cancel_button = utils.create_button(on_click_handler=self.close, text="Отмена", style=config.GTA_MODAL_CANCEL_BUTTON_STYLE)
+
 		send_button.setFixedSize(130, 37)
 		cancel_button.setFixedSize(110, 37)
 		footer_layout.addWidget(send_button)
@@ -402,10 +404,10 @@ class GTAModal(QWidget):
 		Punishes a user with the specified GID, time, and reason.
 		
 		Args:
-			self (GTAModal): The current instance of GTAModal.
+		- self (GTAModal): The current instance of GTAModal.
 		
 		Returns:
-			None
+		- None
 		"""
 		try:
 			gid: int = int(self.gid_edit.text())
@@ -421,10 +423,10 @@ class GTAModal(QWidget):
 		Uncuffs a player with the specified GID and reason.
 
 		Args:
-			self (GTAModal): The current instance of GTAModal.
+		- self (GTAModal): The current instance of GTAModal.
 
 		Returns:
-			None
+		- None
 		"""
 		try:
 			gid = int(self.gid_edit.text())
@@ -439,10 +441,10 @@ class GTAModal(QWidget):
 		Deletes the item with the specified UO ID.
 
 		Args:
-			self (GTAModal): The current instance of GTAModal.
+		- self (GTAModal): The current instance of GTAModal.
 
 		Returns:
-			None
+		- None
 		"""
 		try:
 			uo_id: int = int(self.uo_id_edit.text())
@@ -463,13 +465,12 @@ class GTAModal(QWidget):
 		]
 		for action in actions:
 			paste_to_console(action)
-			time.sleep(2.5)
+			time.sleep(1)
 		self.close()
 
 	def show_notification(self, text: str, notification_type: NotificationType=NotificationType.DEFAULT):
 		self.notification = Notification(text, notification_type)
 		self.notification.show()
-
 
 class AboutWindow(QWidget):
 	def __init__(self):
@@ -569,7 +570,8 @@ class AboutWindow(QWidget):
 		"""
 		Opens the GitHub repository page in the default web browser.
 
-		:return: None
+		Returns:
+		- None
 		"""
 		webbrowser.open(url="https://github.com/JudeDM/binder/tree/main")
 
@@ -577,7 +579,8 @@ class AboutWindow(QWidget):
 		"""
 		Opens the Discord profile page in the default web browser.
 
-		:return: None
+		Returns:
+		- None
 		"""
 		webbrowser.open(url="discord://-/users/208575718093750276")
 
@@ -600,10 +603,10 @@ class AboutWindow(QWidget):
 		Moves the window when dragging the mouse.
 
 		Args:
-			event (QMouseEvent): The mouse event.
+		- event (QMouseEvent): The mouse event.
 
 		Returns:
-			None
+		- None
 		"""
 		if not self.dragging:
 			return
@@ -675,10 +678,10 @@ class ReporsInfoWindow(QWidget):
 		Moves the window when dragging the mouse.
 
 		Args:
-			event (QMouseEvent): The mouse event.
+		- event (QMouseEvent): The mouse event.
 
 		Returns:
-			None
+		- None
 		"""
 		if not self.dragging:
 			return
@@ -1122,7 +1125,7 @@ class Binder(QWidget):
 		self.setWindowFlags(Qt.WindowType.FramelessWindowHint | Qt.WindowType.WindowStaysOnTopHint)
 		self.setAttribute(Qt.WidgetAttribute.WA_TranslucentBackground, True)
 		self.setAttribute(Qt.WidgetAttribute.WA_DeleteOnClose)
-		self.violation_buttons, self.buttons, self.teleport_buttons, self.report_labels = {}, {}, {}, []
+		self.violation_buttons, self.report_buttons, self.teleport_buttons, self.report_labels = [], [], [], []
 		self.is_violation_ui, self.is_report_ui, self.is_teleport_ui, self.is_additional_ui = False, False, False, False
 		self.init_ui()
 		timer = QTimer(self, timeout=self.update_buttons)
@@ -1138,9 +1141,8 @@ class Binder(QWidget):
 			if col >= MAX_COLS:
 				continue
 			for row, button_config in enumerate(col_config):
-				button_number = row * len(violation_config) + col + 1
 				button = utils.create_button(on_click_handler=self.handle_punish_button_click, text=button_config['name'], style=config.ADMIN_BUTTON_STYLE)
-				self.violation_buttons[button_number] = (button, button_config['type'], button_config['time'], button_config['reason'])
+				self.violation_buttons.append((button, button_config['type'], button_config['time'], button_config['reason']))
 				self.violation_buttons_layout.addWidget(button, row, col)
 		self.main_layout.insertLayout(0, self.violation_buttons_layout)
 
@@ -1154,9 +1156,8 @@ class Binder(QWidget):
 			if col >= MAX_COLS:
 				continue
 			for row, button_config in enumerate(col_config):
-				button_number = row * len(button_configs) + col + 1
 				button = utils.create_button(on_click_handler=self.handle_report_button_click, text=button_config['name'], style=config.ADMIN_BUTTON_STYLE)
-				self.buttons[button_number] = (button, button_config['text'])
+				self.report_buttons.append((button, button_config['text']))
 				self.report_buttons_layout.addWidget(button, row, col)
 		self.main_layout.insertLayout(0, self.report_buttons_layout)
 
@@ -1166,16 +1167,13 @@ class Binder(QWidget):
 		self.teleport_layout.setHorizontalSpacing(10)
 		self.teleport_layout.setVerticalSpacing(5)
 		teleport_button_config = utils.load_teleport_button_config()
-
 		for col, col_config in enumerate(teleport_button_config):
 			if col >= MAX_COLS:
 				continue
 			for row, teleport_button_config in enumerate(col_config):
-				button_number = row * len(teleport_button_config) + col + 1
 				button = utils.create_button(on_click_handler=self.handle_teleport_button_click, text=teleport_button_config['name'], style=config.ADMIN_BUTTON_STYLE)
-				self.teleport_buttons[button_number] = (button, teleport_button_config['coords'])
+				self.teleport_buttons.append((button, teleport_button_config['coords']))
 				self.teleport_layout.addWidget(button, row, col)
-
 		self.main_layout.insertLayout(0, self.teleport_layout)
 
 	def init_additional_ui(self):
@@ -1258,7 +1256,7 @@ class Binder(QWidget):
 		if punish_type:
 			self.modal = GTAModal(modal_type=punish_type)
 			return self.modal.show()
-		for button, button_punish_type, punish_time, punish_reason in self.violation_buttons.values():
+		for button, button_punish_type, punish_time, punish_reason in self.violation_buttons:
 			if button is self.sender():
 				if hasattr(self, "gta_modal") and not self.gta_modal.isHidden():
 					return
@@ -1266,7 +1264,7 @@ class Binder(QWidget):
 				return self.modal.show()
 
 	def handle_report_button_click(self, text_to_copy=None):
-		text_to_copy = text_to_copy or next(text for button, text in self.buttons.values() if button is self.sender())
+		text_to_copy = text_to_copy or next(text for button, text in self.report_buttons if button is self.sender())
 		position = mouse.get_position()
 		now = datetime.now()
 		start_date = datetime(now.year, 4, 1, 7)
@@ -1279,7 +1277,7 @@ class Binder(QWidget):
 		self.update_click_data()
 
 	def handle_teleport_button_click(self, text_to_copy=None):
-		text_to_copy = text_to_copy or next(coords for button, coords in self.teleport_buttons.values() if button is self.sender())
+		text_to_copy = text_to_copy or next(coords for button, coords in self.teleport_buttons if button is self.sender())
 		position = mouse.get_position()
 		paste_to_console(f"tpc {text_to_copy}")
 		mouse.click((LEFT+370, TOP+365))
@@ -1470,12 +1468,12 @@ class CoordinateUpdater(QThread):
 
 def my_excepthook(type, value, tback):
 	QMessageBox.critical(
-			main_app, "Ошибка", f"{str(value)}\n\nПросьба сообщить об ошибке в дискдорд: JudeDM",
+			main_app, "Ошибка", f"{str(value)}\n{traceback.format_tb(tback)}\n\nПросьба сообщить об ошибке в дискдорд: JudeDM",
 			QMessageBox.StandardButton.Close
 		)
 	sys.__excepthook__(type, value, tback)
  
-sys.excepthook = my_excepthook	
+# sys.excepthook = my_excepthook
 
 if __name__ == '__main__':
 	mouse = utils.Mouse()
