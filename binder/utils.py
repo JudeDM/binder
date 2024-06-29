@@ -2,13 +2,19 @@
 import hashlib
 import json
 import os
+import re
 import subprocess
 import urllib.request
+import zlib
 from ctypes import (WINFUNCTYPE, Structure, byref, c_bool, c_int, c_uint32,
-					c_ulong, create_unicode_buffer, pointer, windll, wintypes)
+                    c_ulong, create_unicode_buffer, pointer, windll, wintypes)
 from datetime import datetime, timedelta
+from pathlib import Path
 from typing import Callable, NamedTuple
 
+import hwid
+import sslcrypto
+from pydantic import BaseModel, Field
 from PyQt6.QtCore import QSize, Qt
 from PyQt6.QtGui import QIcon
 from PyQt6.QtWidgets import QLabel, QLineEdit, QPushButton
@@ -32,23 +38,36 @@ GWL_STYLE = -16
 WS_BORDER = 0x00800000
 WS_CAPTION = 0x00C00000
 GW_HWNDNEXT = 2
-CLICK_DATA_FILE = os.path.join(__location__, "data/configs/click_data.json")
-BUTTON_VIOLATION_CONFIG_FILE = os.path.join(__location__, "data/configs/violation_config.json")
-BUTTON_REPORT_CONFIG_FILE = os.path.join(__location__, "data/configs/button_config.json")
-BUTTON_TELEPORT_CONFIG_FILE = os.path.join(__location__, "data/configs/teleports.json")
-SECRET_FILE = os.path.join(__location__, "data/configs/secret.json")
 DATE_FORMAT = "%d.%m.%Y"
+ADDIDIONAL_BUTTONS = {
+	"prison": "punish",
+	"mute": "punish",
+	"ban": "punish",
+	"reof": "fast",
+	"dimension_sync": "fast",
+	"car_sync": "car_sync",
+	"uo_delete": "simple",
+	"marketplace_stash": "simple",
+	"tpcar": "simple",
+	"dped_tp": "simple",
+	"uncuff": "uncuff",
+	"force_rename": "force_rename",
+}
+
+cached_files = {}
 
 icons_map = {
 	"about": QIcon("data/icons/about.svg"),
 	"arrow_down": QIcon("data/icons/arrow_down.svg"),
 	"arrow_up": QIcon("data/icons/arrow_up.svg"),
+	"add": QIcon("data/icons/add.svg"),
 	"delete": QIcon("data/icons/delete.svg"),
 	"discord": QIcon("data/icons/discord.svg"),
 	"github": QIcon("data/icons/github.svg"),
 	"minimize": QIcon("data/icons/minimize.svg"),
 	"visible": QIcon("data/icons/visibility_on.svg"),
-	"invisible": QIcon("data/icons/visibility_off.svg")
+	"invisible": QIcon("data/icons/visibility_off.svg"),
+	"settings": QIcon("data/icons/settings.svg"),
 }
 
 
@@ -93,6 +112,8 @@ pixel_map: dict[str, list[TabPixelInfo]] = {
 	]
 }
 
+
+key = hashlib.sha256(hwid.get_hwid("lrbN2O8V5IiET3ygpuvsPLWJAsu4ghS0").encode()).digest()
 
 def get_process(process_name: str) -> tuple[int, int] | None:
 	"""
@@ -165,6 +186,12 @@ def calculate_md5(file_path: str) -> str | None:
 			return None if file_data is None else hashlib.md5(file_data).hexdigest()
 	except Exception:
 		return None
+	
+def calculate_crc32(file_path: str) -> str:
+	prev = 0
+	for eachLine in open(file_path, "rb"):
+		prev = zlib.crc32(eachLine, prev)
+	return "%X"%(prev & 0xFFFFFFFF)
 
 def get_process_name(pid: int) -> str | None:
 	"""
@@ -228,115 +255,300 @@ def get_pixel_color(x: int, y: int, LEFT: int | None = None, TOP:  int | None = 
 	blue = (pixel >> 16) & 0xFF
 	return red, green, blue
 
-def load_click_data() -> dict[str, int]:
-	"""
-	Load the click data from a JSON file.
+def default_visible_buttons():
+	return ["dimension_sync", "car_sync", "uncuff", "reof"]
 
-	Returns:
-	- dict: The click data loaded from the file, or an empty dictionary if the file does not exist.
-	"""
-	return json.load(open(CLICK_DATA_FILE, "r", encoding="utf-8")) if os.path.exists(CLICK_DATA_FILE) else {}
+def default_default_reasons():
+	return {"uncuff": "Поблизости никого нет"}
 
-def save_click_data(click_data: dict) -> None:
-	"""
-	Save the click data to a JSON file.
+class DefaultReasons(BaseModel):
+	uncuff: str = Field(default="Поблизости никого нет")
+	force_rename: str = Field(default="2.7 правил проекта")
 
-	Args:
-	- click_data (dict): The click data to save.
 
-	Returns:
-	- None
-	"""
-	with open(CLICK_DATA_FILE, "w", encoding="utf8") as f:
-		json.dump(click_data, f, indent=4)
+class ButtonStyle(BaseModel):
+	size: list[int] = Field(default_factory=lambda: [133, 33])
 
-def load_violation_button_config() -> dict:
-	"""
-	Load the violation button configuration data from a JSON file.
+	@property
+	def width(self):
+		return self.size[0]
 
-	Returns:
-	- data (dict): The violation button configuration data loaded from the file.
-	"""
-	return json.load(open(BUTTON_VIOLATION_CONFIG_FILE, "r", encoding="utf-8")) if os.path.exists(BUTTON_VIOLATION_CONFIG_FILE) else {}
+	@property
+	def height(self):
+		return self.size[1]
+	
+	@width.setter
+	def width(self, value):
+		self.size[0] = value
 
-def save_violation_button_config(data: dict) -> None:
-	"""
-	Save the violation button configuration data to a JSON file.
+	@height.setter
+	def height(self, value):
+		self.size[1] = value
 
-	Args:
-	- data (dict): The violation button configuration data to save.
 
-	Returns:
-	- None
-	"""
-	with open(BUTTON_VIOLATION_CONFIG_FILE, 'w', encoding="utf-8") as json_file:
-		json.dump(data, json_file, indent=4, ensure_ascii=False)
+class SettingsStructure(BaseModel):
+	user_gid: int = Field(default=1)
+	button_style: ButtonStyle = Field(default_factory=ButtonStyle)
+	visible_buttons: list[str] = Field(default_factory=default_visible_buttons)
+	default_reasons: DefaultReasons = Field(default_factory=DefaultReasons)
 
-def load_report_button_config() -> dict:
-	"""
-	Load the report button configuration data from a JSON file.
 
-	Returns:
-	- data (dict): The report button configuration data loaded from the file.
-	"""
-	return json.load(open(BUTTON_REPORT_CONFIG_FILE, "r", encoding="utf-8")) if os.path.exists(BUTTON_REPORT_CONFIG_FILE) else {}
+class FileSettingsStructure(BaseModel):
+	data: SettingsStructure = Field(default_factory=SettingsStructure)
+	version: int = Field(default=1)
 
-def save_report_button_config(data: dict) -> None:
-	"""
-	Save the report button configuration data to a JSON file.
 
-	Args:
-	- data (dict): The report button configuration data to save.
+class ConfigStructure(BaseModel):
+	data: list = Field(default_factory=list)
+	version: int = Field(default=1)
 
-	Returns:
-	- None
-	"""
-	with open(BUTTON_REPORT_CONFIG_FILE, 'w', encoding="utf-8") as json_file:
-		json.dump(data, json_file, indent=4, ensure_ascii=False)
 
-def load_secret_config() -> dict:
-	"""
-	Load the secret configuration data from a JSON file.
+class ClickDataStructure(BaseModel):
+	data: dict[str, int] = Field(default_factory=dict)
+	version: int = Field(default=1)
 
-	Returns:
-	- data (dict): The secret configuration data loaded from the file.
-	"""
-	return json.load(open(SECRET_FILE, "r", encoding="utf-8")) if os.path.exists(SECRET_FILE) else {}
 
-def save_secret_data(data: dict) -> None:
-	"""
-	Save the secret data to a JSON file.
+class Configuration:
+	data_path = Path(__location__) / "data"
+	configs_path = data_path / "configs"
+	def __init__(self):
+		self._cache = {}
 
-	Args:
-	- data (dict): The secret data to save.
+	def validate_configs(self) -> None:
+		self.create_directories()
+		self.rename_old_configs()
+		self.validate_config_files()
+		self.validate_settings()
+		self.validate_click_data()
 
-	Returns:
-	- None
-	"""
-	with open(SECRET_FILE, 'w', encoding="utf8") as json_file:
-		json.dump(data, json_file, indent=4, ensure_ascii=False)
+	def create_directories(self) -> None:
+		"""
+		Create necessary directories.
+		"""
+		self.data_path.mkdir(parents=True, exist_ok=True)
+		self.configs_path.mkdir(parents=True, exist_ok=True)
 
-def load_teleport_button_config() -> dict:
-	"""
-	Load the teleport button configuration data from a JSON file.
+	def rename_old_configs(self) -> None:
+		"""
+		Rename old configuration files to new names.
+		"""
+		old_new_names = {
+			"button_config.json": "reports.json",
+			"violation_config.json": "violations.json",
+			"secret.json": "settings.json",
+			"click_data": "clicks.json"
+		}
 
-	Returns:
-	- data (dict): The teleport button configuration data loaded from the file.
-	"""
-	return json.load(open(BUTTON_TELEPORT_CONFIG_FILE, "r", encoding="utf-8")) if os.path.exists(BUTTON_TELEPORT_CONFIG_FILE) else {}
+		for old_name, new_name in old_new_names.items():
+			old_path = self.configs_path / old_name
+			new_path = self.configs_path / new_name
+			if old_path.exists():
+				if new_path.exists():
+					new_path.unlink()
+				old_path.rename(new_path)
 
-def save_teleport_button_config(data: dict) -> None:
-	"""
-	Save the teleport button configuration data to a JSON file.
+	def validate_config_files(self) -> None:
+		"""
+		Validate individual configuration files.
+		"""
+		config_names = ["reports", "violations", "teleports"]
 
-	Args:
-	- data (dict): The teleport button configuration data to save.
+		for file_name in config_names:
+			config_path = self.configs_path / f"{file_name}.json"
+			if config_path.exists():
+				with config_path.open("r", encoding="utf-8") as file:
+					try:
+						data = json.load(file)
+					except json.JSONDecodeError:
+						new_data = ConfigStructure()
+						self._save_config(config_path, new_data.model_dump())
+						continue
+				if isinstance(data, list) and data and isinstance(data[0], list) and isinstance(data[0][0], dict):
+					all_buttons = [button for group in data for button in group]
+					new_data = ConfigStructure(data=all_buttons)
+					self._save_config(config_path, new_data.model_dump())
+			else:
+				new_data = ConfigStructure()
+				self._save_config(config_path, new_data.model_dump())
 
-	Returns:
-	- None
-	"""
-	with open(BUTTON_TELEPORT_CONFIG_FILE, 'w', encoding="utf-8") as json_file:
-		json.dump(data, json_file, indent=4, ensure_ascii=False)
+	def validate_settings(self) -> None:
+		"""
+		Validate settings configuration file.
+		"""
+		settings_config_path = self.configs_path / "settings.json"
+		if settings_config_path.exists():
+			try:
+				with settings_config_path.open("r", encoding="utf-8") as file:
+					data = json.load(file)
+			except json.JSONDecodeError:
+				new_data = FileSettingsStructure(
+					data=SettingsStructure(),
+					version=1
+				)
+				self._save_config(settings_config_path, new_data.model_dump())
+				return
+
+			if isinstance(data, dict):
+				if data.get("version") is None:
+					new_data = FileSettingsStructure(
+						data=SettingsStructure(
+							user_gid=data.get("user_gid", 1),
+							button_style=ButtonStyle(**data.get("button_style", {})),
+							visible_buttons=data.get("visible_buttons", default_visible_buttons()),
+							default_reasons=data.get("default_reasons", default_default_reasons()),
+						),
+						version=1
+					)
+					self._save_config(settings_config_path, new_data.model_dump())
+			else:
+				new_data = FileSettingsStructure(
+					data=SettingsStructure(),
+					version=1
+				)
+				self._save_config(settings_config_path, new_data.model_dump())
+		else:
+			new_data = FileSettingsStructure(
+				data=SettingsStructure(),
+				version=1
+			)
+			self._save_config(settings_config_path, new_data.model_dump())
+
+	def validate_click_data(self) -> None:
+		"""
+		Validate click data configuration file.
+		"""
+		click_data_path = self.configs_path / "click_data.json"
+		if click_data_path.exists():
+			try:
+				with click_data_path.open("r", encoding="utf-8") as file:
+					data = json.load(file)
+			except json.JSONDecodeError:
+				new_data = ClickDataStructure()
+				self._save_config(click_data_path, new_data.model_dump())
+				return
+
+			if isinstance(data, dict):
+				if data.get("version") is None:
+					new_data = ClickDataStructure(data=data)
+					self._save_config(click_data_path, new_data.model_dump())
+			else:
+				new_data = ClickDataStructure()
+				self._save_config(click_data_path, new_data.model_dump())
+		else:
+			new_data = ClickDataStructure()
+			self._save_config(click_data_path, new_data.model_dump())
+
+	def _save_config(self, path: Path, data: dict) -> None:
+		"""
+		Save the configuration data to the given path.
+		"""
+		with path.open("w", encoding="utf-8") as file:
+			json.dump(data, file, ensure_ascii=False, indent=4)
+
+	def _get_config_data(self, file_path: Path):
+		try:
+			file_crc32 = calculate_crc32(file_path=file_path)
+		except FileNotFoundError:
+			self.validate_configs()
+			return self._get_config_data(file_path=file_path)
+		self.validate_configs()
+		if file_crc32 and file_path in self._cache and self._cache[file_path]['crc32'] == file_crc32:
+			return self._cache[file_path]['data']
+		else:
+			try:
+				with file_path.open("r", encoding="utf-8") as file:
+					data = json.load(file)
+					self._cache[file_path] = {
+						'crc32': file_crc32,
+						'data': data
+					}
+					return data
+			except Exception:
+				return {}
+
+	def save_config(self, config_name: str, data: dict) -> None:
+		file_mapping = {
+			'click_data': 'click_data.json',
+			'violations': 'violations.json',
+			'reports': 'reports.json',
+			'settings': 'settings.json',
+			'teleports': 'teleports.json'
+		}
+		file_name = file_mapping.get(config_name)
+		if file_name:
+			file_path = self.configs_path / file_name
+			if config_name == 'settings':
+				data = FileSettingsStructure(data=SettingsStructure(**data)).model_dump()
+			elif config_name == 'click_data':
+				data = ClickDataStructure(data=data).model_dump()
+			else:
+				data = ConfigStructure(data=data).model_dump()
+			self._save_config(file_path, data)
+			self._cache[file_path] = {
+				'crc32': calculate_crc32(file_path=file_path),
+				'data': data
+			}
+
+	@property
+	def click_data(self) -> dict[str, int]:
+		file_path = self.configs_path / 'click_data.json'
+		return self._get_config_data(file_path)["data"]
+
+	@property
+	def violations_config(self) -> dict:
+		file_path = self.configs_path / 'violations.json'
+		return self._get_config_data(file_path)["data"]
+
+	@property
+	def reports_config(self) -> dict:
+		file_path = self.configs_path / 'reports.json'
+		return self._get_config_data(file_path)["data"]
+
+	@property
+	def settings_config(self) -> SettingsStructure:
+		file_path = self.configs_path / 'settings.json'
+		return SettingsStructure(**self._get_config_data(file_path)["data"])
+
+	@property
+	def password(self) -> str:
+		credentials_file = self.configs_path / "credentials"
+		if not credentials_file.exists():
+			return ""
+
+		with open(credentials_file, "rb") as file:
+			data = file.read()
+		try:
+			iv, ciphertext = data.split(b"|")
+			return sslcrypto.aes.decrypt(ciphertext, iv, key).decode("utf-8")
+		except (ValueError, UnicodeDecodeError):
+			return ""
+
+
+	@password.setter
+	def password(self, password: str) -> None:
+		ciphertext, iv = sslcrypto.aes.encrypt(password.encode("utf-8"), key)
+		password = iv + b"|" + ciphertext
+		with open(self.configs_path / "credentials", "wb") as file:
+			file.write(password)
+
+
+	@property
+	def teleports_config(self) -> dict:
+		file_path = self.configs_path / 'teleports.json'
+		return self._get_config_data(file_path)["data"]
+	
+	@teleports_config.setter
+	def save(self, data: dict):
+		file_path = self.configs_path / 'teleports.json'
+		config_data = ConfigStructure(data=data).model_dump()
+		self._save_config(file_path, config_data)
+		self._cache[file_path] = {
+			'crc32': calculate_crc32(file_path=file_path),
+			'data': config_data
+		}
+
+configuration = Configuration()
+
 
 def get_reports_info() -> dict[str, dict[str, int]]:
 	"""
@@ -348,7 +560,7 @@ def get_reports_info() -> dict[str, dict[str, int]]:
 	today_date = datetime.now().strftime(DATE_FORMAT)
 	week_ago_date = (datetime.now() - timedelta(days=datetime.now().weekday() + 1)).strftime(DATE_FORMAT)
 	month_ago_date = (datetime.now() - timedelta(days=30)).strftime(DATE_FORMAT)
-	report_data = load_click_data()
+	report_data = configuration.click_data
 	week_ago_date_dt = datetime.strptime(week_ago_date, DATE_FORMAT)
 	today_date_dt = datetime.strptime(today_date, DATE_FORMAT)
 	month_ago_date_dt = datetime.strptime(month_ago_date, DATE_FORMAT)
@@ -388,6 +600,36 @@ def get_reports_count(reports_data: dict[str, dict[str, int]] | None = None) -> 
 	monthly_reports = sum(reports_data["monthly_reports"].values())
 	all_reports = sum(reports_data["all_reports"].values())
 	return daily_reports, weekly_reports, monthly_reports, all_reports
+
+def clean_text(text: str) -> str:
+	new_text = re.sub(r'^\d+\.\s*', '', text, flags=re.MULTILINE)
+	new_text = re.sub(r'^\-\s*', '', new_text, flags=re.MULTILINE)
+	new_text = re.sub(r'^\s+', '', new_text, flags=re.MULTILINE)
+	new_text = re.sub(r'[;.]$', '', new_text, flags=re.MULTILINE)
+	return '\n'.join(f"- {line}" for line in new_text.splitlines())
+
+def convert_datetime_format(time: str) -> str:
+	datetime_matches = re.findall(r'\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}Z', time)
+	for match in datetime_matches:
+		dt = datetime.strptime(match, '%Y-%m-%dT%H:%M:%SZ')
+		formatted_dt = dt.strftime('%d.%m.%Y, %H:%M:%S')
+		text = time.replace(match, formatted_dt)
+	return text
+
+def get_commits_history() -> list[dict]:
+	response = urllib.request.urlopen(url="https://api.github.com/repos/judedm/Binder/commits?per_page=10000", timeout=5)
+	commits = json.loads(response.read().decode())
+	data = []
+	for commit in commits:
+		message = commit["commit"]["message"]
+		if "\n\n" in message:
+			data.append(
+				{
+					"date": convert_datetime_format(commit["commit"]["committer"]["date"]),
+	 				"message": clean_text(message.split("\n\n")[1])
+				}
+			)
+	return data
 
 def create_line(text: str | None = None, style: str | None = None) -> QLineEdit:
 	"""

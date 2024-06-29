@@ -1,7 +1,4 @@
-﻿DATE_FORMAT = "%d.%m.%Y"
-UNCUFF_DEFAULT_REASON = "Поблизости никого нет"
-
-TEXT_COLOR = "#e0e0e0"
+﻿TEXT_COLOR = "#e0e0e0"
 BORDER_COLOR = "#3D5A80"
 BACKGROUND_COLOR = "#0f1c2e"
 LINE_BACKGROUND_COLOR = "#4d648d"
@@ -71,9 +68,9 @@ SETTINGS_WINDOW_STYLE = F"""
 		height: 12px;
 		margin-right: 15px;
 	}}
-    
+	
 	QComboBox::down-arrow:on
-    {{
+	{{
 		image: url(./data/icons/arrow_up.svg);
 	}}
 
@@ -102,8 +99,10 @@ ADMIN_BUTTON_STYLE = """
 		font-weight: 450;
 		font-family: "Columbia";
 		font-size: 13px;
-		width: 153px;
-		height: 33px;
+		min-width: %width%px;
+		max-width: %width%px;
+		min-height: 33px;
+		max-height: 33px;
 	}
 
 	QPushButton:hover {
@@ -125,20 +124,20 @@ ADMIN_STATS_STYLE = """
 
 MAIN_APP_STYLE = f"""
 	background-color: {BACKGROUND_COLOR};
-    color: {TEXT_COLOR};
-    font-weight: 600;
-    font-size: 16px;
+	color: {TEXT_COLOR};
+	font-weight: 600;
+	font-size: 16px;
 	QLineEdit
 	{{
 		background-color: {LINE_BACKGROUND_COLOR};
 		border: 2px solid {LINE_BACKGROUND_COLOR};
 	}}
-    QPushButton
-    {{
-    	background-color: {LINE_BACKGROUND_COLOR}
+	QPushButton
+	{{
+		background-color: {LINE_BACKGROUND_COLOR}
 	}}
 	QToolTip
-    {{
+	{{
 		border: 2px solid red;
 	}}
 """
@@ -160,7 +159,7 @@ MAIN_APP_PASSWORD_VISIBILITY_BUTTON_STYLE = f"""
 MAIN_APP_FOOTER_BUTTON_STYLE = f"""
 	margin-top: 5px;
 	border: 5px solid {LINE_BACKGROUND_COLOR};
-    background-color: {LINE_BACKGROUND_COLOR};
+	background-color: {LINE_BACKGROUND_COLOR};
 """
 MAIN_APP_HEADER_BUTTON_STYLE = f"""
 	width: 40px;
@@ -209,13 +208,15 @@ GTA_MODAL_SEND_BUTTON_STYLE = f"""
 	font-size: 15px;
 	color: {TEXT_COLOR};
 	background-color: #f0233c;
+	border-radius: 1px;
 """
 GTA_MODAL_CANCEL_BUTTON_STYLE = f"""
 	font-family: 'Verdana';
 	font-weight: 600;
 	font-size: 15px;
 	color: {TEXT_COLOR};
-	background-color: #2f3843
+	background-color: #2f3843;
+	border-radius: 1px;
 """
 GTA_MODAL_TITLE_BACKGROUND_COLOR_STYLE = "background-color: #1d1f23"
 GTA_MODAL_MIDDLE_BACKGROUND_COLOR_STYLE = "background-color: #1b1e22"
@@ -370,4 +371,63 @@ ABOUT_WINDOW_BUTTON_STYLE = f"""
 	color: {TEXT_COLOR};
 	background-color: {LINE_BACKGROUND_COLOR};
 	border: 5px solid {LINE_BACKGROUND_COLOR};
+"""
+ABOUT_WINDOW_SCROLL_AREA_STYLE = f"""
+	QScrollBar::handle:vertical
+	{{
+		background-color: {LINE_BACKGROUND_COLOR};
+		margin: 3px;
+		border-radius: 4px;
+	}}
+
+	QScrollBar::add-line:vertical
+	{{
+		border-image: url(.);
+	}}
+
+	QScrollBar::sub-line:vertical
+	{{
+		border-image: url(:);
+	}}
+
+	QScrollBar::add-page:vertical, QScrollBar::sub-page:vertical
+	{{
+		background: none;
+	}}
+	
+	QWidget
+	{{
+		border: none;
+	}}
+"""
+ABOUT_WINDOW_SCROLL_AREA_TITLE_STYLE = f"""
+	font-weight: 700;
+	font-size: 16px;
+	color: {TEXT_COLOR};
+"""
+ABOUT_WINDOW_SCROLL_AREA_TEXT_STYLE = f"""
+	font-weight: 600;
+	font-size: 15px;
+	color: {TEXT_COLOR};
+	margin-bottom: 10px;
+"""
+
+BINDER_SETTINGS_WINDOW_LABEL_STYLE = f"""
+	font-weight: 600;
+	font-size: 16px;
+	color: {TEXT_COLOR};
+"""
+BINDER_SETTINGS_WINDOW_BUTTON_STYLE = """
+	border-radius: 0px;
+	background-color: "#555555";
+	color: #ffffff;
+	font-weight: 450;
+	font-family: "Columbia";
+	font-size: 13px;
+	width: 153px;
+	height: 33px;
+	min-width: 153px;
+	max-width: 153px;
+	min-height: 33px;
+	max-height: 33px;
 """
