@@ -2,19 +2,21 @@
 	"hashes": {
 		"Binder.exe": "38b1a78ea87de6e8cdc6fa901e84257b",
 		"data/icons/about.svg": "e583fba29d79d2ecbb3445f47c3fc508",
+		"data/icons/add.svg": "76558b60af0fb5cd34e5d1a58de61b14",
 		"data/icons/arrow_down.svg": "44ffc7314a7d5612a7a28bdf012afb1d",
 		"data/icons/arrow_up.svg": "8f1f07754c5a385359bb581877631a4b",
 		"data/icons/delete.svg": "74f92d0475ae30bfeb99c4f69cd5b26c",
 		"data/icons/discord.svg": "7c0a515c909eeeff9f5cb6d3fa9cb0e2",
 		"data/icons/github.svg": "b4a2866d8e9047eb6878e80c7fde2254",
 		"data/icons/minimize.svg": "6f7d021e4ab1c2a92939bc3fd661c9a4",
+		"data/icons/settings.svg": "f7a3a89357dcd7b5a3a0a56218ddb298",
 		"data/icons/visibility_off.svg": "b4b06a68bc0af7be946522054f7b0b26",
 		"data/icons/visibility_on.svg": "35b6359d6913006b59cb49f485f35c92"
 	},
 	"files": [
-		"data/configs/button_config.json",
+		"data/configs/reports.json",
 		"data/configs/teleports.json",
-		"data/configs/violation_config.json"
+		"data/configs/violations.json"
 	],
-	"last_updated": "1719234615"
+	"last_updated": "1719688775"
 }
