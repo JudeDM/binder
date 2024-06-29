@@ -1,5 +1,5 @@
-[
-    [
+{
+    "data": [
         {
             "name": "NonRP Drive",
             "time": 20,
@@ -30,5 +30,6 @@
             "reason": "Музыка в ЗЗ",
             "type": "mute"
         }
-    ]
-]
+    ],
+    "version": 1
+}
