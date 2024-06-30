@@ -7,7 +7,7 @@ import subprocess
 import urllib.request
 import zlib
 from ctypes import (WINFUNCTYPE, Structure, byref, c_bool, c_int, c_uint32,
-                    c_ulong, create_unicode_buffer, pointer, windll, wintypes)
+					c_ulong, create_unicode_buffer, pointer, windll, wintypes)
 from datetime import datetime, timedelta
 from pathlib import Path
 from typing import Callable, NamedTuple
@@ -189,9 +189,14 @@ def calculate_md5(file_path: str) -> str | None:
 	
 def calculate_crc32(file_path: str) -> str:
 	prev = 0
-	for eachLine in open(file_path, "rb"):
-		prev = zlib.crc32(eachLine, prev)
-	return "%X"%(prev & 0xFFFFFFFF)
+	try:
+		with open(file_path, "rb") as f:
+			for eachLine in f:
+				prev = zlib.crc32(eachLine, prev)
+		return f"{prev & 0xFFFFFFFF:X}"
+	except Exception:
+		return None
+
 
 def get_process_name(pid: int) -> str | None:
 	"""
@@ -267,7 +272,7 @@ class DefaultReasons(BaseModel):
 
 
 class ButtonStyle(BaseModel):
-	size: list[int] = Field(default_factory=lambda: [133, 33])
+	size: list[int] = Field(default_factory=lambda: [153, 33])
 
 	@property
 	def width(self):
@@ -367,6 +372,9 @@ class Configuration:
 					all_buttons = [button for group in data for button in group]
 					new_data = ConfigStructure(data=all_buttons)
 					self._save_config(config_path, new_data.model_dump())
+				elif not isinstance(data, dict):
+					new_data = ConfigStructure()
+					self._save_config(config_path, new_data.model_dump())
 			else:
 				new_data = ConfigStructure()
 				self._save_config(config_path, new_data.model_dump())
@@ -451,10 +459,10 @@ class Configuration:
 		except FileNotFoundError:
 			self.validate_configs()
 			return self._get_config_data(file_path=file_path)
-		self.validate_configs()
 		if file_crc32 and file_path in self._cache and self._cache[file_path]['crc32'] == file_crc32:
 			return self._cache[file_path]['data']
 		else:
+			self.validate_configs()
 			try:
 				with file_path.open("r", encoding="utf-8") as file:
 					data = json.load(file)
@@ -611,25 +619,28 @@ def clean_text(text: str) -> str:
 def convert_datetime_format(time: str) -> str:
 	datetime_matches = re.findall(r'\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}Z', time)
 	for match in datetime_matches:
-		dt = datetime.strptime(match, '%Y-%m-%dT%H:%M:%SZ')
+		dt = datetime.strptime(match, '%Y-%m-%dT%H:%M:%SZ') + timedelta(hours=3)
 		formatted_dt = dt.strftime('%d.%m.%Y, %H:%M:%S')
 		text = time.replace(match, formatted_dt)
 	return text
 
 def get_commits_history() -> list[dict]:
-	response = urllib.request.urlopen(url="https://api.github.com/repos/judedm/Binder/commits?per_page=10000", timeout=5)
-	commits = json.loads(response.read().decode())
-	data = []
-	for commit in commits:
-		message = commit["commit"]["message"]
-		if "\n\n" in message:
-			data.append(
-				{
-					"date": convert_datetime_format(commit["commit"]["committer"]["date"]),
-	 				"message": clean_text(message.split("\n\n")[1])
-				}
-			)
-	return data
+	try:
+		response = urllib.request.urlopen(url="https://api.github.com/repos/judedm/Binder/commits?per_page=10000", timeout=5)
+		commits = json.loads(response.read().decode())
+		data = []
+		for commit in commits:
+			message = commit["commit"]["message"]
+			if "\n\n" in message:
+				data.append(
+					{
+						"date": convert_datetime_format(commit["commit"]["committer"]["date"]),
+						"message": clean_text(message.split("\n\n")[1])
+					}
+				)
+		return data
+	except urllib.error.URLError:
+		return []
 
 def create_line(text: str | None = None, style: str | None = None) -> QLineEdit:
 	"""

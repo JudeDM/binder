@@ -1790,7 +1790,7 @@ class CoordinateUpdater(QThread):
 				WINDOW_HEIGHT = BOTTOM - TOP
 				MAX_COLS = (WINDOW_WIDTH - 1010 - max(150, button_width)) // (button_width + 10)
 				self.coordinates_updated.emit()
-			time.sleep(1)
+			time.sleep(0.5)
 
 	def stop(self):
 		self._running = False
