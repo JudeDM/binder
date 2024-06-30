@@ -1,6 +1,6 @@
 {
 	"hashes": {
-		"Binder.exe": "d6af554972f4eef049df2374fc1dc41c",
+		"Binder.exe": "d8a69b71d71e9fb150a8c25977bd372d",
 		"data/icons/about.svg": "e583fba29d79d2ecbb3445f47c3fc508",
 		"data/icons/add.svg": "76558b60af0fb5cd34e5d1a58de61b14",
 		"data/icons/arrow_down.svg": "44ffc7314a7d5612a7a28bdf012afb1d",
@@ -18,5 +18,5 @@
 		"data/configs/teleports.json",
 		"data/configs/violations.json"
 	],
-	"last_updated": "1719721693"
+	"last_updated": "1719723534"
 }
