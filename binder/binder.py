@@ -1,4 +1,4 @@
-﻿import os
+import os
 import re
 import subprocess
 import sys
@@ -1710,7 +1710,7 @@ def paste_to_console(text: str):
 	keyboard.send('ctrl+a, backspace')
 	pyperclip.copy(text)
 	keyboard.send('ctrl+v')
-	# keyboard.send('enter')
+	keyboard.send('enter')
 
 def create_header_layout(instance: MainApp | Binder, title: str | None = None) -> QHBoxLayout:
 	"""
