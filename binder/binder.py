@@ -15,9 +15,9 @@ import pyperclip
 from PyQt6.QtCore import QObject, Qt, QThread, QTimer, pyqtSignal
 from PyQt6.QtGui import QColor, QFont, QMouseEvent, QPalette
 from PyQt6.QtWidgets import (QApplication, QComboBox, QDialog, QFormLayout,
-                             QGridLayout, QHBoxLayout, QLayout, QLineEdit,
-                             QMessageBox, QPushButton, QScrollArea, QScrollBar,
-                             QSpacerItem, QVBoxLayout, QWidget)
+							 QGridLayout, QHBoxLayout, QLayout, QLineEdit,
+							 QMessageBox, QPushButton, QScrollArea, QScrollBar,
+							 QSpacerItem, QVBoxLayout, QWidget)
 from pyqt_advanced_slider import Slider
 
 import config
@@ -406,7 +406,7 @@ class GTAModal(QWidget):
 			return self.show_notification("GID должен быть целым числом!", NotificationType.ERROR)
 		time: str = self.time_edit.text()
 		reason: str = self.reason_edit.text()
-		paste_to_console(f"{self.modal_type} {gid} {time} {reason}")
+		paste_to_console(f"{self.command_name} {gid} {time} {reason}")
 		self.close()
 
 	def simple_command(self) -> None:
@@ -506,7 +506,7 @@ class ConfigSettingsWindow(QWidget):
 		titles_layout.addWidget(selected_buttons_title)
 		titles_layout.addWidget(available_buttons_title)
 		self.main_layout.addLayout(titles_layout)
-		for button_name in self.visible_buttons:
+		for button_name in reversed(self.visible_buttons):
 			self.add_button_row(button_name=button_name, layout=self.preview_buttons_layout, controls=self.visible_buttons_controls)
 		for button_name in [button for button in utils.ADDIDIONAL_BUTTONS.keys() if button not in self.visible_buttons]:
 			self.add_button_row(button_name=button_name, layout=self.available_buttons_layout, controls=self.available_buttons_controls)
@@ -1710,7 +1710,7 @@ def paste_to_console(text: str):
 	keyboard.send('ctrl+a, backspace')
 	pyperclip.copy(text)
 	keyboard.send('ctrl+v')
-	keyboard.send('enter')
+	# keyboard.send('enter')
 
 def create_header_layout(instance: MainApp | Binder, title: str | None = None) -> QHBoxLayout:
 	"""
