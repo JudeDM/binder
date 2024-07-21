@@ -13,7 +13,7 @@
 		"data/icons/visibility_off.svg": "b4b06a68bc0af7be946522054f7b0b26",
 		"data/icons/visibility_on.svg": "35b6359d6913006b59cb49f485f35c92",
 		"data/icons/checkbox_checked.svg": "b32920d09f2fbd4ddabed50d2de79204",
-		"data/icons/checkbox_unchecked.svg": "da32d2cdc9c74a32661734005126afc1",
+		"data/icons/checkbox_unchecked.svg": "da32d2cdc9c74a32661734005126afc1"
 	},
 	"files": [
 		"data/configs/reports.json",
