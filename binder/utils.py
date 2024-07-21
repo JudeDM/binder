@@ -2,22 +2,27 @@
 import hashlib
 import json
 import os
+import platform
 import re
 import subprocess
+import sys
 import urllib.request
+import uuid
 import zlib
 from ctypes import (WINFUNCTYPE, Structure, byref, c_bool, c_int, c_uint32,
-					c_ulong, create_unicode_buffer, pointer, windll, wintypes)
+                    c_ulong, create_unicode_buffer, pointer, windll, wintypes)
 from datetime import datetime, timedelta
+from enum import Enum
 from pathlib import Path
 from typing import Callable, NamedTuple
 
-import hwid
+# import hwid
 import sslcrypto
 from pydantic import BaseModel, Field
 from PyQt6.QtCore import QSize, Qt
-from PyQt6.QtGui import QIcon
-from PyQt6.QtWidgets import QLabel, QLineEdit, QPushButton
+from PyQt6.QtGui import QIcon, QMouseEvent
+from PyQt6.QtWidgets import (QApplication, QLabel, QLineEdit, QMessageBox,
+                             QPushButton, QWidget)
 
 __location__ = os.getcwd()
 user32 = windll.user32
@@ -55,7 +60,6 @@ ADDIDIONAL_BUTTONS = {
 }
 
 cached_files = {}
-
 icons_map = {
 	"about": QIcon("data/icons/about.svg"),
 	"arrow_down": QIcon("data/icons/arrow_down.svg"),
@@ -68,8 +72,67 @@ icons_map = {
 	"visible": QIcon("data/icons/visibility_on.svg"),
 	"invisible": QIcon("data/icons/visibility_off.svg"),
 	"settings": QIcon("data/icons/settings.svg"),
+	"checkbox_checked": QIcon("data/icons/checkbox_checked.svg"),
+	"checkbox_unchecked": QIcon("data/icons/checkbox_unchecked.svg"),
 }
 
+
+class HWIDGenerator:
+    def __init__(self):
+        self.drive_serial = self.safe_execute(self.get_drive_serial)
+        self.cpu_id = self.safe_execute(self.get_cpu_id)
+        self.username = self.safe_execute(self.get_username)
+        self.mac_address = self.safe_execute(self.get_mac_address)
+        self.system_id = self.safe_execute(self.get_system_id)
+        self.motherboard_serial = self.safe_execute(self.get_motherboard_serial)
+        self.system_uuid = self.safe_execute(self.get_system_uuid)
+
+    @staticmethod
+    def safe_execute(method):
+        try:
+            return method()
+        except Exception as e:
+            return str(e)
+
+    @staticmethod
+    def get_drive_serial() -> str:
+        return hex(uuid.getnode())
+
+    @staticmethod
+    def get_cpu_id() -> str:
+        return hashlib.md5(platform.processor().encode()).hexdigest()
+
+    @staticmethod
+    def get_username() -> str:
+        return os.getlogin()
+
+    @staticmethod
+    def get_mac_address() -> str:
+        mac = uuid.UUID(int=uuid.getnode()).hex[-12:]
+        return ':'.join([mac[e:e+2] for e in range(0, 12, 2)])
+
+    @staticmethod
+    def get_system_id() -> str:
+        return platform.node()
+
+    @staticmethod
+    def get_motherboard_serial() -> str:
+        return subprocess.check_output('wmic baseboard get serialnumber', shell=True).decode().split('\n')[1].strip()
+
+    @staticmethod
+    def get_system_uuid() -> str:
+        return subprocess.check_output('wmic csproduct get uuid', shell=True).decode().split('\n')[1].strip()
+
+    def generate_hwid(self) -> str:
+        hwid_string = (
+            f"{self.drive_serial}-{self.cpu_id}-{self.username}-"
+            f"{self.mac_address}-{self.system_id}-"
+            f"{self.motherboard_serial}-{self.system_uuid}"
+        )
+        return hashlib.sha256(hwid_string.encode()).hexdigest()
+
+
+hwid_generator = HWIDGenerator()
 
 class TabPixelInfo(NamedTuple):
 	"""
@@ -99,6 +162,8 @@ pixel_map: dict[str, list[TabPixelInfo]] = {
 		TabPixelInfo(x=940, y=385, color=(85, 85, 85), left_side=True, top_side=True)
 	],
 	"console_tab": [
+		TabPixelInfo(x=12, y=12, color=(255, 255, 255), left_side=True, top_side=True),
+		TabPixelInfo(x=12, y=60, color=(255, 255, 255), left_side=True, top_side=True),
 		TabPixelInfo(x=20, y=370, color=(68, 68, 68), left_side=True, top_side=True),
 		TabPixelInfo(x=70, y=370, color=(68, 68, 68), left_side=True, top_side=True)
 	],
@@ -113,7 +178,7 @@ pixel_map: dict[str, list[TabPixelInfo]] = {
 }
 
 
-key = hashlib.sha256(hwid.get_hwid("lrbN2O8V5IiET3ygpuvsPLWJAsu4ghS0").encode()).digest()
+key = hashlib.sha256(hwid_generator.generate_hwid().encode()).digest()
 
 def get_process(process_name: str) -> tuple[int, int] | None:
 	"""
@@ -291,11 +356,19 @@ class ButtonStyle(BaseModel):
 		self.size[1] = value
 
 
+class AutoSendStructure(BaseModel):
+	reports: bool = Field(default=True)
+	violations: bool = Field(default=True)
+	teleports: bool = Field(default=True)
+	commands: bool = Field(default=True)
+
+
 class SettingsStructure(BaseModel):
 	user_gid: int = Field(default=1)
 	button_style: ButtonStyle = Field(default_factory=ButtonStyle)
 	visible_buttons: list[str] = Field(default_factory=default_visible_buttons)
 	default_reasons: DefaultReasons = Field(default_factory=DefaultReasons)
+	auto_send: AutoSendStructure = Field(default_factory=AutoSendStructure)
 
 
 class FileSettingsStructure(BaseModel):
@@ -316,6 +389,7 @@ class ClickDataStructure(BaseModel):
 class Configuration:
 	data_path = Path(__location__) / "data"
 	configs_path = data_path / "configs"
+	config_names = ["reports", "violations", "teleports"]
 	def __init__(self):
 		self._cache = {}
 
@@ -356,9 +430,7 @@ class Configuration:
 		"""
 		Validate individual configuration files.
 		"""
-		config_names = ["reports", "violations", "teleports"]
-
-		for file_name in config_names:
+		for file_name in self.config_names:
 			config_path = self.configs_path / f"{file_name}.json"
 			if config_path.exists():
 				with config_path.open("r", encoding="utf-8") as file:
@@ -404,6 +476,7 @@ class Configuration:
 							button_style=ButtonStyle(**data.get("button_style", {})),
 							visible_buttons=data.get("visible_buttons", default_visible_buttons()),
 							default_reasons=data.get("default_reasons", default_default_reasons()),
+							auto_send=AutoSendStructure(**data.get("auto_send", {}))
 						),
 						version=1
 					)
@@ -465,13 +538,19 @@ class Configuration:
 			self.validate_configs()
 			try:
 				with file_path.open("r", encoding="utf-8") as file:
-					data = json.load(file)
+					data = None
+					if "styles.css" in file_path.name:
+						data = file.read()
+					else:
+						data = json.load(file)
 					self._cache[file_path] = {
 						'crc32': file_crc32,
 						'data': data
 					}
 					return data
 			except Exception:
+				if "styles.css" in file_path.name:
+					return ""
 				return {}
 
 	def save_config(self, config_name: str, data: dict) -> None:
@@ -498,6 +577,15 @@ class Configuration:
 			}
 
 	@property
+	def resource_path(self) -> Path:
+		""" Get absolute path to resource for PyInstaller """
+		try:
+			base_path = sys._MEIPASS
+		except Exception:
+			return self.data_path
+		return Path(base_path) / "data"
+
+	@property
 	def click_data(self) -> dict[str, int]:
 		file_path = self.configs_path / 'click_data.json'
 		return self._get_config_data(file_path)["data"]
@@ -516,6 +604,11 @@ class Configuration:
 	def settings_config(self) -> SettingsStructure:
 		file_path = self.configs_path / 'settings.json'
 		return SettingsStructure(**self._get_config_data(file_path)["data"])
+
+	@property
+	def stylesheet(self) -> str:
+		file_path = self.resource_path / 'styles.css'
+		return self._get_config_data(file_path)
 
 	@property
 	def password(self) -> str:
@@ -565,25 +658,28 @@ def get_reports_info() -> dict[str, dict[str, int]]:
 	Returns:
 	- reports_dict (dict[str, dict[str, int]]): A dictionary containing the number of reports for the current day, week, month and all time.
 	"""
-	today_date = datetime.now().strftime(DATE_FORMAT)
-	week_ago_date = (datetime.now() - timedelta(days=datetime.now().weekday() + 1)).strftime(DATE_FORMAT)
-	month_ago_date = (datetime.now() - timedelta(days=30)).strftime(DATE_FORMAT)
 	report_data = configuration.click_data
-	week_ago_date_dt = datetime.strptime(week_ago_date, DATE_FORMAT)
-	today_date_dt = datetime.strptime(today_date, DATE_FORMAT)
-	month_ago_date_dt = datetime.strptime(month_ago_date, DATE_FORMAT)
+	today_date_dt = datetime.now().replace(hour=0, minute=0, second=0, microsecond=0)
+	today_date = today_date_dt.strftime(DATE_FORMAT)
+	days_since_sunday = today_date_dt.weekday() + 1
+	last_sunday_dt = today_date_dt - timedelta(days=days_since_sunday)
+	if today_date_dt.weekday() == 6:
+		last_sunday_dt = today_date_dt
+	last_sunday = last_sunday_dt.strftime(DATE_FORMAT)
+	first_month_date = today_date_dt.replace(day=1, hour=0, minute=0, second=0, microsecond=0).strftime(DATE_FORMAT)
+	first_month_date_dt = datetime.strptime(first_month_date, DATE_FORMAT)
 	reports_dict: dict[str, dict[str, int]] = {
 		"daily_reports": {today_date: report_data.get(today_date, 0)}
 	}
-	reports_dict["weekly_reports"] = {week_ago_date: report_data.get(week_ago_date, 0)}
-	reports_dict["monthly_reports"] = {month_ago_date: report_data.get(month_ago_date, 0)}
+	reports_dict["weekly_reports"] = {last_sunday: report_data.get(last_sunday, 0)}
+	reports_dict["monthly_reports"] = {first_month_date: report_data.get(first_month_date, 0)}
 	first_day = next(iter(report_data), today_date)
 	reports_dict["all_reports"] = {first_day: report_data.get(first_day, 0)}
 	for date in report_data:
 		date_dt = datetime.strptime(date, DATE_FORMAT)
-		if week_ago_date_dt <= date_dt <= today_date_dt:
+		if last_sunday_dt <= date_dt <= today_date_dt:
 			reports_dict.setdefault("weekly_reports", {})[date] = report_data[date]
-		if month_ago_date_dt <= date_dt <= today_date_dt:
+		if first_month_date_dt <= date_dt <= today_date_dt:
 			reports_dict.setdefault("monthly_reports", {})[date] = report_data[date]
 		reports_dict.setdefault("all_reports", {})[date] = report_data[date]
 	return reports_dict
@@ -642,13 +738,13 @@ def get_commits_history() -> list[dict]:
 	except urllib.error.URLError:
 		return []
 
-def create_line(text: str | None = None, style: str | None = None) -> QLineEdit:
+def create_line(text: str | None = None, class_name: str | None = None) -> QLineEdit:
 	"""
 	Create a QLineEdit widget with optional text and style.
 
 	Args:
 	- text: The text to initialize the QLineEdit with.
-	- style: The style sheet to apply to the QLineEdit.
+	- class_name: The class name to apply to the QLineEdit.
 
 	Returns:
 	- QLineEdit: The created QLineEdit widget.
@@ -656,17 +752,18 @@ def create_line(text: str | None = None, style: str | None = None) -> QLineEdit:
 	line = QLineEdit()
 	if text is not None:
 		line.setText(str(text))
-	if style is not None:
-		line.setStyleSheet(style)
+	if class_name is not None:
+		line.setProperty("class", class_name)
+	line.setCursorPosition(0)
 	return line
 
-def create_label(text: str | None = None, style: str | None = None) -> QLabel:
+def create_label(text: str | None = None, class_name: str | None = None) -> QLabel:
 	"""
 	Create a QLabel widget with optional text and style.
 
 	Args:
 	- text: The text to initialize the QLabel with.
-	- style: The style sheet to apply to the QLabel.
+	- style: The class name to apply to the QLabel.
 
 	Returns:
 	- QLabel: The created QLabel widget.
@@ -675,11 +772,11 @@ def create_label(text: str | None = None, style: str | None = None) -> QLabel:
 	label.setTextInteractionFlags(Qt.TextInteractionFlag.TextSelectableByMouse)
 	if text is not None:
 		label.setText(str(text))
-	if style is not None:
-		label.setStyleSheet(style)
+	if class_name is not None:
+		label.setProperty("class", class_name)
 	return label
 
-def create_button(on_click_handler: Callable | None = None, text: str | None = None, icon_name: str | None = None, style: str | None = None) -> QPushButton:
+def create_button(on_click_handler: Callable | None = None, text: str | None = None, icon_name: str | None = None, class_name: str | None = None) -> QPushButton:
 	"""
 	Create a QPushButton widget with optional text, click handler, icon and style.
 
@@ -700,8 +797,8 @@ def create_button(on_click_handler: Callable | None = None, text: str | None = N
 	if icon_name:
 		button.setIcon(icons_map[icon_name])
 		button.setIconSize(QSize(16, 16))
-	if style:
-		button.setStyleSheet(style)
+	if class_name:
+		button.setProperty("class", class_name)
 	return button
 
 def is_within_range(color1: tuple[int, int, int], color2: tuple[int, int, int], tolerance: int = 5) -> bool:
@@ -717,6 +814,20 @@ def is_within_range(color1: tuple[int, int, int], color2: tuple[int, int, int], 
 	- bool: True if the colors are within the tolerance range, False otherwise.
 	"""
 	return all(abs(c1 - c2) <= tolerance for c1, c2 in zip(color1, color2))
+
+replacements = {
+	"%background-color%": "#0f1c2e",
+	"%font-color%": "#e0e0e0",
+	"%button-color%": "#4d648d",
+	"%line-background-color%": "#3D5A80"
+}
+
+def parse_stylesheet() -> str:
+	style = configuration.stylesheet
+	for key, value in replacements.items():
+		style = style.replace(key, value)
+	style = style.replace("%admin-button-width%", str(configuration.settings_config.button_style.width))
+	return style
 
 def check_update():
 	urllib.request.urlcleanup()
@@ -752,6 +863,82 @@ def is_tab_open(tab_name: str, RIGHT: int, BOTTOM: int, LEFT: int, TOP: int) -> 
 			), line.color
 		) for line in pixel_map[tab_name]
 	)
+
+class NotificationType(Enum):
+	CRITICAL = "critical"
+	WARNING = "warning"
+	DEFAULT = "default"
+
+	def get_color(self) -> str:
+		colors = {
+			self.__class__.CRITICAL: "red",
+			self.__class__.WARNING: "orange",
+			self.__class__.DEFAULT: "#00aaff",
+		}
+		return colors.get(self, "white")
+
+	def get_icon(self) -> QMessageBox:
+		icons = {
+			self.__class__.CRITICAL: QMessageBox.Icon.Critical,
+			self.__class__.WARNING: QMessageBox.Icon.Warning,
+			self.__class__.DEFAULT: QMessageBox.Icon.Information,
+		}
+		return icons.get(self, QMessageBox.Icon.Information)
+
+def copy_to_clipboard(text):
+    clipboard = QApplication.clipboard()
+    clipboard.setText(text)
+
+class Notification(QMessageBox):
+	def __init__(self, text: str, notification_type: NotificationType = NotificationType.DEFAULT):
+		super().__init__()
+		self.setIcon(notification_type.get_icon())
+		self.setWindowTitle("Уведомление")
+		self.setWindowFlags(self.windowFlags() | Qt.WindowType.FramelessWindowHint | Qt.WindowType.WindowStaysOnTopHint)
+		self.setText(text)
+		if notification_type == NotificationType.CRITICAL:
+			copy_button = QPushButton("Скопировать ошибку")
+			copy_button.setFixedWidth(160)
+			self.addButton(copy_button, QMessageBox.ButtonRole.NoRole)
+			self.setStandardButtons(QMessageBox.StandardButton.Ok)
+			def on_copy_button_clicked():
+				copy_to_clipboard(text.split("<br><pre>")[1].split("</pre><br><b>")[0])
+			copy_button.clicked.connect(on_copy_button_clicked)
+		color = notification_type.get_color()
+		style = parse_stylesheet().replace("%color%", color)
+		self.setStyleSheet(style)
+
+
+class DragableWidget(QWidget):
+	def __init__(self):
+		super().__init__(None)
+		self.setWindowFlag(Qt.WindowType.FramelessWindowHint)
+		self.initial_pos = None
+
+	def mousePressEvent(self, event: QMouseEvent):
+		if event.button() == Qt.MouseButton.LeftButton:
+			self.initial_pos = event.position().toPoint()
+		super().mousePressEvent(event)
+		event.accept()
+
+	def mouseMoveEvent(self, event: QMouseEvent):
+		if self.initial_pos is not None:
+			delta = event.position().toPoint() - self.initial_pos
+			self.window().move(
+				self.window().x() + delta.x(),
+				self.window().y() + delta.y(),
+			)
+		super().mouseMoveEvent(event)
+		event.accept()
+
+	def mouseReleaseEvent(self, event: QMouseEvent):
+		self.initial_pos = None
+		super().mouseReleaseEvent(event)
+		event.accept()
+
+	def show_notification(self, text: str, notification_type: NotificationType=NotificationType.DEFAULT):
+		self.notification = Notification(text, notification_type)
+		self.notification.show()
 
 
 class Mouse:
