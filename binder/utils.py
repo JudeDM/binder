@@ -9,7 +9,7 @@ import urllib.request
 import uuid
 import zlib
 from concurrent.futures import ThreadPoolExecutor
-from ctypes import windll
+from ctypes import Structure, c_ulong, pointer, windll
 from datetime import datetime, timedelta
 from pathlib import Path
 
@@ -19,7 +19,7 @@ from pydantic import BaseModel, Field
 from PyQt6.QtCore import QMargins, QSize, Qt
 from PyQt6.QtGui import QColor, QFont, QIcon, QMouseEvent, QPixmap
 from PyQt6.QtWidgets import (QHBoxLayout, QLabel, QLineEdit, QPushButton,
-                             QWidget, QScrollArea)
+                             QScrollArea, QWidget)
 from pyqttoast import (Toast, ToastButtonAlignment, ToastIcon, ToastPosition,
                        ToastPreset)
 
@@ -137,36 +137,60 @@ class HWIDGenerator:
 
 	@staticmethod
 	def get_drive_serial():
-		return hex(uuid.getnode())
+		try:
+			return hex(uuid.getnode())
+		except Exception:
+			return 0
 
 	@staticmethod
 	def get_cpu_id():
-		return hashlib.md5(platform.processor().encode()).hexdigest()
+		try:
+			return hashlib.md5(platform.processor().encode()).hexdigest()
+		except Exception:
+			return 0
 
 	@staticmethod
 	def get_username():
-		return os.getlogin()
+		try:
+			return os.getlogin()
+		except Exception:
+			return 0
 
 	@staticmethod
 	def get_mac_address():
-		mac = uuid.UUID(int=uuid.getnode()).hex[-12:]
-		return ':'.join(mac[e:e+2] for e in range(0, 12, 2))
+		try:
+			mac = uuid.UUID(int=uuid.getnode()).hex[-12:]
+			return ':'.join(mac[e:e+2] for e in range(0, 12, 2))
+		except Exception:
+			return 0
 
 	@staticmethod
 	def get_system_id():
-		return platform.node()
+		try:
+			return platform.node()
+		except Exception:
+			return 0
 
 	@staticmethod
 	def get_motherboard_serial():
-		return subprocess.check_output('wmic baseboard get serialnumber', shell=True).decode().split('\n')[1].strip()
+		try:
+			return subprocess.check_output('wmic baseboard get serialnumber', shell=True).decode().split('\n')[1].strip()
+		except Exception:
+			return 0
 
 	@staticmethod
 	def get_system_uuid():
-		return subprocess.check_output('wmic csproduct get uuid', shell=True).decode().split('\n')[1].strip()
+		try:
+			return subprocess.check_output('wmic csproduct get uuid', shell=True).decode().split('\n')[1].strip()
+		except Exception:
+			return 0
 
 	def generate_hwid(self):
-		hwid_string = '-'.join(f"{attr()}" for attr in self.attributes.values())
-		return hashlib.sha256(hwid_string.encode()).hexdigest()
+		try:
+			hwid_string = '-'.join(f"{attr()}" for attr in self.attributes.values())
+			return hashlib.sha256(hwid_string.encode()).hexdigest()
+		except Exception:
+			return 0
 
 
 hwid_generator = HWIDGenerator()
@@ -912,3 +936,140 @@ class HorizontalScrollArea(QScrollArea):
 	def enterEvent(self, event):
 		self.setFocus()
 		super().enterEvent(event)
+
+
+class Mouse:
+	"""
+	It simulates the mouse.
+	Attributes:
+	- MOUSEEVENTF_MOVE (int): Mouse move event flag.
+	- MOUSEEVENTF_LEFTDOWN (int): Left button down event flag.
+	- MOUSEEVENTF_LEFTUP (int): Left button up event flag.
+	- MOUSEEVENTF_RIGHTDOWN (int): Right button down event flag.
+	- MOUSEEVENTF_RIGHTUP (int): Right button up event flag.
+	- MOUSEEVENTF_MIDDLEDOWN (int): Middle button down event flag.
+	- MOUSEEVENTF_MIDDLEUP (int): Middle button up event flag.
+	- MOUSEEVENTF_WHEEL (int): Wheel button rolled event flag.
+	- MOUSEEVENTF_ABSOLUTE (int): Absolute move event flag.
+	- SM_CXSCREEN (int): System metric for screen width.
+	- SM_CYSCREEN (int): System metric for screen height.
+	Methods:
+	- _do_event(flags, x_pos, y_pos, data, extra_info): Generate a mouse event.
+	- _get_button_value(button_name, button_up=False): Convert button name to the corresponding value.
+	- move_mouse(pos): Move the mouse to the specified coordinates.
+	- press_button(pos=(-1, -1), button_name="left", button_up=False): Push a mouse button.
+	- click(pos=(-1, -1), button_name="left"): Click at the specified position.
+	- get_position(): Get the current mouse position.
+	"""
+
+	MOUSEEVENTF_MOVE = 0x0001
+	MOUSEEVENTF_LEFTDOWN = 0x0002
+	MOUSEEVENTF_LEFTUP = 0x0004
+	MOUSEEVENTF_RIGHTDOWN = 0x0008
+	MOUSEEVENTF_RIGHTUP = 0x0010
+	MOUSEEVENTF_MIDDLEDOWN = 0x0020
+	MOUSEEVENTF_MIDDLEUP = 0x0040
+	MOUSEEVENTF_WHEEL = 0x0800
+	MOUSEEVENTF_ABSOLUTE = 0x8000
+	SM_CXSCREEN = 0
+	SM_CYSCREEN = 1
+
+
+	def _do_event(self, flags, x_pos, y_pos, data, extra_info):
+		"""
+		Generate a mouse event.
+		Args:
+		- flags (int): Mouse event flags.
+		- x_pos (int): X-coordinate for the event.
+		- y_pos (int): Y-coordinate for the event.
+		- data (int): Additional data for the event.
+		- extra_info (int): Extra information for the event.
+		Returns:
+		- int: Result of the mouse event generation.
+		"""
+		x_calc = int(65536 * x_pos / windll.user32.GetSystemMetrics(self.SM_CXSCREEN) + 1)
+		y_calc = int(65536 * y_pos / windll.user32.GetSystemMetrics(self.SM_CYSCREEN) + 1)
+		return windll.user32.mouse_event(flags, x_calc, y_calc, data, extra_info)
+
+
+	def _get_button_value(self, button_name, button_up=False):
+		"""
+		Convert the name of the button into the corresponding value.
+		Args:
+		- button_name (str): Name of the button.
+		- button_up (bool): Whether the button is released.
+		Returns:
+		- int: Corresponding value of the button.
+		"""
+		buttons = self.MOUSEEVENTF_RIGHTDOWN if button_name.find("right") >= 0 else 0
+		if button_name.find("left") >= 0:
+			buttons = buttons + self.MOUSEEVENTF_LEFTDOWN
+		if button_name.find("middle") >= 0:
+			buttons = buttons + self.MOUSEEVENTF_MIDDLEDOWN
+		if button_up:
+			buttons = buttons << 1
+		return buttons
+
+
+	def move(self, pos):
+		"""
+		Move the mouse to the specified coordinates.
+		Args:
+		- pos (tuple): Tuple containing X and Y coordinates.
+		Returns:
+		- None
+		"""
+		(x, y) = pos
+		old_pos = self.get_position()
+		x = x if (x != -1) else old_pos[0]
+		y = y if (y != -1) else old_pos[1]
+		self._do_event(self.MOUSEEVENTF_MOVE + self.MOUSEEVENTF_ABSOLUTE, x, y, 0, 0)
+
+
+	def press_button(self, pos=(-1, -1), button_name="left", button_up=False):
+		"""
+		Push a button of the mouse.
+		Args:
+		- pos (tuple): Tuple containing X and Y coordinates.
+		- button_name (str): Name of the button.
+		- button_up (bool): Whether the button is released.
+		Returns:
+		- None
+		"""
+		self.move(pos)
+		self._do_event(self._get_button_value(button_name, button_up), 0, 0, 0, 0)
+
+
+	def click(self, pos=(-1, -1), button_name="left"):
+		"""
+		Click at the specified place.
+		Args:
+		- pos (tuple): Tuple containing X and Y coordinates.
+		- button_name (str): Name of the button.
+		Returns:
+		- None
+		"""
+		self.move(pos)
+		self._do_event(self._get_button_value(button_name, False) + self._get_button_value(button_name, True), 0, 0, 0, 0)
+
+
+	def get_position(self):
+		"""
+		Get the mouse position.
+		Returns:
+		- tuple: Tuple containing X and Y coordinates of the mouse position.
+		"""
+		point = POINT()
+		windll.user32.GetCursorPos(pointer(point))
+		return point.x, point.y
+
+
+class POINT(Structure):
+	"""
+	Structure representing a point with X and Y coordinates.
+	Attributes:
+	- x (c_ulong): X-coordinate.
+	- y (c_ulong): Y-coordinate.
+	"""
+	_fields_ = [("x", c_ulong), ("y", c_ulong)]
+

@@ -6,11 +6,13 @@ from coordinate_updater import CoordinateUpdater
 from PyQt6.QtCore import QObject, QSize, Qt, QThread, pyqtSignal
 from PyQt6.QtWidgets import QHBoxLayout, QScrollArea, QVBoxLayout, QWidget
 from pyqttoast import ToastPreset
-from utils import (ADDIDIONAL_BUTTONS, DraggableWidget, configuration,
+from utils import (ADDIDIONAL_BUTTONS, DraggableWidget, Mouse,configuration,
                    create_button, create_header_layout, create_label,
                    create_line, get_commits_history, get_reports_count,
                    get_reports_info, show_notification)
-
+import keyboard
+import pyperclip
+mouse = Mouse()
 
 class UpdateHistoryWorker(QObject):
 	history_updated = pyqtSignal(list)
@@ -161,14 +163,15 @@ class GTAModal(QWidget):
 			show_notification(parent=self, preset=ToastPreset.ERROR_DARK, text="ID должен быть целочисленным значением!")
 
 	def paste_to_console(self, text, paste_type=None):
-		binder_utils.mouse_click((self.left + 55, self.top + 375))
+		mouse.click((self.left + 55, self.top + 375))
 		time.sleep(0.2)
-		binder_utils.mouse_click((self.left + 500, self.top + 335))
-		binder_utils.keyboard_press("ctrl+a backspace")
-		binder_utils.keyboard_send(text)
+		mouse.click((self.left + 500, self.top + 335))
+		keyboard.send("ctrl+a, backspace")
+		pyperclip.copy(text)
+		keyboard.send('ctrl+v')
 		time.sleep(0.1)
 		if paste_type and getattr(configuration.settings_config.auto_send, paste_type, False):
-			binder_utils.keyboard_press("enter")
+			keyboard.send("enter")
 
 
 class AboutWindow(DraggableWidget):

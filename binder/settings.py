@@ -7,9 +7,9 @@ from PyQt6.QtWidgets import (QAbstractItemView, QApplication, QCheckBox,
                              QTableWidget, QVBoxLayout, QWidget)
 from pyqt_advanced_slider import Slider
 from pyqttoast import ToastPreset
-from utils import (ADDIDIONAL_BUTTONS, DraggableWidget, HorizontalScrollArea, configuration,
-                   create_button, create_header_layout, create_label,
-                   create_line, parse_stylesheet, replacements,
+from utils import (ADDIDIONAL_BUTTONS, DraggableWidget, HorizontalScrollArea,
+                   configuration, create_button, create_header_layout,
+                   create_label, create_line, parse_stylesheet, replacements,
                    show_notification)
 from widgets import MovableButton
 

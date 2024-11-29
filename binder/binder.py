@@ -1,4 +1,3 @@
-from hashlib import sha384
 import time
 from datetime import datetime
 from functools import partial
@@ -10,9 +9,13 @@ from dialogs import GTAModal
 from PyQt6.QtCore import QObject, Qt, QThread, pyqtSignal
 from PyQt6.QtWidgets import (QGridLayout, QHBoxLayout, QLayout, QPushButton,
                              QScrollArea, QVBoxLayout, QWidget)
-from utils import (ADDIDIONAL_BUTTONS, DATE_FORMAT, configuration,
-                   create_button, create_label, get_reports_count,
-                   get_tabs_state, HorizontalScrollArea)
+from utils import (ADDIDIONAL_BUTTONS, DATE_FORMAT, HorizontalScrollArea,
+                   configuration, create_button, create_label,
+                   get_reports_count, get_tabs_state, Mouse)
+import pyperclip
+import keyboard
+
+mouse = Mouse()
 
 if TYPE_CHECKING:
 	from app import MainApp
@@ -215,25 +218,26 @@ class Binder(QWidget):
 
 	def handle_report_button_click(self, text_to_copy=None):
 		text_to_copy = text_to_copy or self.report_buttons.get(self.sender(), {}).get('text')
-		position = binder_utils.mouse_position()
+		position = mouse.get_position()
 		now = datetime.now()
 		start_date = datetime(now.year, 4, 1, 7)
 		end_date = datetime(now.year, 4, 2, 7)
-		binder_utils.mouse_click((self.left+245, (self.top+345 if start_date <= now < end_date else self.top+330)))
-		binder_utils.keyboard_send(text_to_copy)
+		mouse.click((self.left+245, (self.top+345 if start_date <= now < end_date else self.top+330)))
+		pyperclip.copy(text_to_copy)
+		keyboard.send('ctrl+v')
 		if configuration.settings_config.auto_send.reports is True:
-			binder_utils.keyboard_press("enter")
-		binder_utils.mouse_move(position)
+			keyboard.send('enter')
+		mouse.move(position)
 		self.update_click_data()
 
 	def handle_teleport_button_click(self, text_to_copy=None):
 		text_to_copy = text_to_copy or self.teleport_buttons.get(self.sender(), {}).get('coords')
-		position = binder_utils.mouse_position()
+		position = mouse.get_position()
 		self.paste_to_console(text=f"tpc {text_to_copy}", paste_type="teleports")
 		if configuration.settings_config.auto_send.teleports is True:
-			binder_utils.keyboard_press("enter")
-			binder_utils.mouse_click((self.left+370, self.top+365))
-			binder_utils.mouse_move(position)
+			keyboard.send('enter')
+			mouse.click((self.left+370, self.top+365))
+			mouse.move(position)
 
 	def init_ui(self):
 		self.main_layout = QHBoxLayout()
@@ -273,13 +277,13 @@ class Binder(QWidget):
 		self.gta_modal.show()
 
 	def process_fast_button_click(self, button_name: str):
-		position = binder_utils.mouse_position()
+		position = mouse.get_position()
 		settings_config = configuration.settings_config
 		self.paste_to_console(text=button_name if button_name == "reof" else f"{button_name} {settings_config.user_gid}", paste_type="commands")
 		if settings_config.auto_send.commands is True:
-			binder_utils.keyboard_press("enter")
-			binder_utils.mouse_click((self.left+370, self.top+365))
-			binder_utils.mouse_move(position)
+			keyboard.send('enter')
+			mouse.click((self.left+290, self.top+365))
+			mouse.move(position)
 
 	@classmethod
 	def clear_layout(cls, layout_or_widget: QLayout | QScrollArea):
@@ -319,9 +323,10 @@ class Binder(QWidget):
 		self.app.stop_binder()
 
 	def paste_to_console(self, text: str, paste_type: str | None = None):
-		binder_utils.mouse_click((self.left+55, self.top+375))
+		mouse.click((self.left+55, self.top+375))
 		time.sleep(0.1)
-		binder_utils.mouse_click((self.left+500, self.top+335))
-		binder_utils.keyboard_press("ctrl+a backspace")
-		binder_utils.keyboard_send(text)
+		mouse.click((self.left+500, self.top+335))
+		keyboard.send("ctrl+a, backspace")
+		pyperclip.copy(text)
+		keyboard.send('ctrl+v')
 		time.sleep(0.1)

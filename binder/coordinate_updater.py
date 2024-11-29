@@ -1,5 +1,5 @@
-from hmac import new
 import time
+from hmac import new
 
 import binder_utils
 from PyQt6.QtCore import QThread, pyqtSignal

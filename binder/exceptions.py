@@ -18,7 +18,7 @@ def my_excepthook(type, value, tback):
 		error_message = f"{str(value)}\n\n{formatted_tb}"
 	show_notification(
 		title="Произошла неизвестная ошибка!\nПросьба сообщить об ошибке в дискорд: dmitriy_win",
-		duration=15000, preset=ToastPreset.ERROR_DARK,
+		duration=0, preset=ToastPreset.ERROR_DARK,
 		text=error_message,
 		icon_separator=False,
 		text_section_margins=QMargins(0, 0, 0, 0),

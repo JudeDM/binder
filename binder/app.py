@@ -26,7 +26,6 @@ class MainApp(DraggableWidget):
 		self.coordinate_updater = coordinate_updater
 		self.binder_running = False
 		self.setWindowTitle('Настройки')
-
 		self.setup_worker() #/ Ждём фикса pyqttoast под multiline
 		self.setup_tooltip_settings()
 		self.setup_labels_and_edits()
