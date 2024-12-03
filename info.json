@@ -1,6 +1,6 @@
 {
 	"hashes": {
-		"Binder.exe": "bd8892f5c40d451e82333cc7c85ffb82",
+		"Binder.exe": "3906ea4189cf2119f5127de841658249",
 		"data/icons/about.svg": "e583fba29d79d2ecbb3445f47c3fc508",
 		"data/icons/add.svg": "76558b60af0fb5cd34e5d1a58de61b14",
 		"data/icons/arrow_down.svg": "44ffc7314a7d5612a7a28bdf012afb1d",
@@ -15,11 +15,14 @@
 		"data/icons/checkbox_checked.svg": "b32920d09f2fbd4ddabed50d2de79204",
 		"data/icons/checkbox_unchecked.svg": "da32d2cdc9c74a32661734005126afc1",
 		"data/icons/tooltip.svg": "bafcac4d5743874c289c166c8904dc1b"
+		"data/icons/mute.svg": "68ac97e41701cd1876299a4c0c109c24"
+		"data/icons/prison.svg": "ce3727c7586ede58c3a57723027b2ad6"
+		"data/icons/ban.svg": "e56cd52028cbd2d39b0a893aa23e4235"
 	},
 	"files": [
 		"data/configs/reports.json",
 		"data/configs/teleports.json",
 		"data/configs/violations.json"
 	],
-	"last_updated": "1732897604"
+	"last_updated": "1733264401"
 }
