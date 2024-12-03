@@ -8,10 +8,10 @@ from coordinate_updater import CoordinateUpdater
 from dialogs import GTAModal
 from PyQt6.QtCore import QObject, Qt, QThread, pyqtSignal
 from PyQt6.QtWidgets import (QGridLayout, QHBoxLayout, QLayout, QPushButton,
-                             QScrollArea, QVBoxLayout, QWidget)
+							 QScrollArea, QVBoxLayout, QWidget)
 from utils import (ADDIDIONAL_BUTTONS, DATE_FORMAT, HorizontalScrollArea,
-                   configuration, create_button, create_label,
-                   get_reports_count, get_tabs_state, Mouse)
+				   configuration, create_button, create_label,
+				   get_reports_count, get_tabs_state, Mouse)
 import pyperclip
 import keyboard
 
@@ -63,16 +63,13 @@ class Worker(QObject):
 			for tab, is_open in tabs_state.items():
 				tab_info = self.tab_name_map.get(tab)
 				is_ui_attr = getattr(self, tab_info["is_ui"])
-				try:
-					if is_open and not is_ui_attr:
-						setattr(self, tab_info["is_ui"], True)
-						getattr(self.signals, tab_info["func"]).emit()
-					elif not is_open and is_ui_attr:
-						setattr(self, tab_info["is_ui"], False)
-						self.signals.clear_layout.emit(getattr(self.binder_instance, tab_info["layout"]))
-				except TypeError:
-					pass
-			time.sleep(0.1)
+				if is_open and not is_ui_attr:
+					setattr(self, tab_info["is_ui"], True)
+					getattr(self.signals, tab_info["func"]).emit()
+				elif not is_open and is_ui_attr:
+					setattr(self, tab_info["is_ui"], False)
+					self.signals.clear_layout.emit(getattr(self.binder_instance, tab_info["layout"]))
+			time.sleep(0.2)
 
 	def stop(self):
 		self._running = False
@@ -97,7 +94,6 @@ class Binder(QWidget):
 		self.thread.finished.connect(self.worker.stop)
 		self.thread.finished.connect(self.thread.deleteLater)
 
-		self.thread.start()
 		self.coordinate_updater = coordinate_updater
 
 		self.coordinate_updater.coordinates_updated.connect(self.update_window_size)
@@ -121,6 +117,7 @@ class Binder(QWidget):
 		self.teleport_buttons: dict[QPushButton, dict] = {}
 		self.report_labels = []
 		self.init_ui()
+		self.thread.start()
 
 
 	def update_window_size(self, left, top, right, bottom, width, height):
@@ -224,6 +221,7 @@ class Binder(QWidget):
 		end_date = datetime(now.year, 4, 2, 7)
 		mouse.click((self.left+245, (self.top+345 if start_date <= now < end_date else self.top+330)))
 		pyperclip.copy(text_to_copy)
+		pyperclip.copy(text_to_copy) # В случае, если первый раз не сработает.
 		keyboard.send('ctrl+v')
 		if configuration.settings_config.auto_send.reports is True:
 			keyboard.send('enter')
@@ -233,7 +231,7 @@ class Binder(QWidget):
 	def handle_teleport_button_click(self, text_to_copy=None):
 		text_to_copy = text_to_copy or self.teleport_buttons.get(self.sender(), {}).get('coords')
 		position = mouse.get_position()
-		self.paste_to_console(text=f"tpc {text_to_copy}", paste_type="teleports")
+		self.paste_to_console(text=f"tpc {text_to_copy}")
 		if configuration.settings_config.auto_send.teleports is True:
 			keyboard.send('enter')
 			mouse.click((self.left+370, self.top+365))
@@ -279,7 +277,7 @@ class Binder(QWidget):
 	def process_fast_button_click(self, button_name: str):
 		position = mouse.get_position()
 		settings_config = configuration.settings_config
-		self.paste_to_console(text=button_name if button_name == "reof" else f"{button_name} {settings_config.user_gid}", paste_type="commands")
+		self.paste_to_console(text=button_name if button_name == "reof" else f"{button_name} {settings_config.user_gid}")
 		if settings_config.auto_send.commands is True:
 			keyboard.send('enter')
 			mouse.click((self.left+290, self.top+365))
@@ -307,7 +305,10 @@ class Binder(QWidget):
 	def update_report_labels(self):
 		daily_reports, weekly_reports, monthly_reports, all_reports = get_reports_count()
 		for label, count in zip(self.report_labels[-3:], [daily_reports, weekly_reports, monthly_reports]):
-			label.setText(f"{label.text()[:label.text().index(':')]}: {count}")
+			try:
+				label.setText(f"{label.text()[:label.text().index(':')]}: {count}")
+			except RuntimeError:
+				pass
 
 	def update_click_data(self):
 		today_date = datetime.now().strftime(DATE_FORMAT)
@@ -322,7 +323,7 @@ class Binder(QWidget):
 		self.thread.wait()
 		self.app.stop_binder()
 
-	def paste_to_console(self, text: str, paste_type: str | None = None):
+	def paste_to_console(self, text: str):
 		mouse.click((self.left+55, self.top+375))
 		time.sleep(0.1)
 		mouse.click((self.left+500, self.top+335))

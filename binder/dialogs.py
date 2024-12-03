@@ -144,7 +144,7 @@ class GTAModal(QWidget):
 			f"tpcar {car_gid}"
 		]
 		for action in actions:
-			self.paste_to_console(text=action)
+			self.paste_to_console(text=action, paste_type="commands")
 			time.sleep(1)
 		self.close()
 

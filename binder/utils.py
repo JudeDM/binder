@@ -15,13 +15,13 @@ from pathlib import Path
 
 # import hwid
 import sslcrypto
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, ValidationError
 from PyQt6.QtCore import QMargins, QSize, Qt
 from PyQt6.QtGui import QColor, QFont, QIcon, QMouseEvent, QPixmap
 from PyQt6.QtWidgets import (QHBoxLayout, QLabel, QLineEdit, QPushButton,
-                             QScrollArea, QWidget)
+							 QScrollArea, QWidget)
 from pyqttoast import (Toast, ToastButtonAlignment, ToastIcon, ToastPosition,
-                       ToastPreset)
+					   ToastPreset)
 
 __location__ = os.getcwd()
 
@@ -233,10 +233,10 @@ def default_visible_buttons():
 def default_default_reasons():
 	return {"uncuff": "Поблизости никого нет"}
 
+# Data Models
 class DefaultReasons(BaseModel):
 	uncuff: str = Field(default="Поблизости никого нет")
 	force_rename: str = Field(default="2.7 правил проекта")
-
 
 class ButtonStyle(BaseModel):
 	size: list[int] = Field(default_factory=lambda: [153, 33])
@@ -257,13 +257,11 @@ class ButtonStyle(BaseModel):
 	def height(self, value):
 		self.size[1] = value
 
-
 class AutoSendStructure(BaseModel):
 	reports: bool = Field(default=True)
 	violations: bool = Field(default=True)
 	teleports: bool = Field(default=True)
 	commands: bool = Field(default=True)
-
 
 class SettingsStructure(BaseModel):
 	user_gid: int = Field(default=1)
@@ -273,35 +271,50 @@ class SettingsStructure(BaseModel):
 	auto_send: AutoSendStructure = Field(default_factory=AutoSendStructure)
 	show_update_info: bool = Field(default=True)
 
-
 class FileSettingsStructure(BaseModel):
 	data: SettingsStructure = Field(default_factory=SettingsStructure)
 	version: int = Field(default=1)
-
 
 class ConfigStructure(BaseModel):
 	data: list = Field(default_factory=list)
 	version: int = Field(default=1)
 
-
 class ClickDataStructure(BaseModel):
 	data: dict[str, int] = Field(default_factory=dict)
 	version: int = Field(default=1)
-
 
 class Configuration:
 	data_path = Path(__location__) / "data"
 	configs_path = data_path / "configs"
 	config_names = ["reports", "violations", "teleports"]
+
 	def __init__(self):
 		self._cache = {}
 
 	def validate_configs(self) -> None:
 		self.create_directories()
-		self.rename_old_configs()
 		self.validate_config_files()
-		self.validate_settings()
-		self.validate_click_data()
+
+	def _validate_and_save_config(self, config_name: str, default_model: BaseModel) -> None:
+		config_path = self.configs_path / f"{config_name}.json"
+		if config_path.exists():
+			try:
+				with config_path.open("r", encoding="utf-8") as file:
+					data = json.load(file)
+					config_data = default_model(**data)
+			except (json.JSONDecodeError, ValidationError):
+				config_data = default_model()
+		else:
+			config_data = default_model()
+
+		self._save_config(config_path, config_data.model_dump())
+
+	def validate_config_files(self) -> None:
+		self._validate_and_save_config("reports", ConfigStructure)
+		self._validate_and_save_config("violations", ConfigStructure)
+		self._validate_and_save_config("teleports", ConfigStructure)
+		self._validate_and_save_config("click_data", ClickDataStructure)
+		self._validate_and_save_config("settings", FileSettingsStructure)
 
 	def create_directories(self) -> None:
 		"""
@@ -310,111 +323,7 @@ class Configuration:
 		self.data_path.mkdir(parents=True, exist_ok=True)
 		self.configs_path.mkdir(parents=True, exist_ok=True)
 
-	def rename_old_configs(self) -> None:
-		"""
-		Rename old configuration files to new names.
-		"""
-		old_new_names = {
-			"button_config.json": "reports.json",
-			"violation_config.json": "violations.json",
-			"secret.json": "settings.json",
-			"click_data": "clicks.json"
-		}
-
-		for old_name, new_name in old_new_names.items():
-			old_path = self.configs_path / old_name
-			new_path = self.configs_path / new_name
-			if old_path.exists():
-				if new_path.exists():
-					new_path.unlink()
-				old_path.rename(new_path)
-
-	def validate_config_files(self):
-		for config_name in ["reports", "violations", "settings", "teleports", "click_data"]:
-			config_path = self.configs_path / f"{config_name}.json"
-			if not config_path.exists():
-				default_data = ConfigStructure() if config_name != "settings" else FileSettingsStructure()
-				self._save_config(config_path, default_data.model_dump())
-			else:
-				try:
-					with config_path.open("r", encoding="utf-8") as file:
-						json.load(file)  # Just checking if JSON is valid
-				except json.JSONDecodeError:
-					default_data = ConfigStructure() if config_name != "settings" else FileSettingsStructure()
-					self._save_config(config_path, default_data.model_dump())
-
-	def validate_settings(self) -> None:
-		"""
-		Validate settings configuration file.
-		"""
-		settings_config_path = self.configs_path / "settings.json"
-		if settings_config_path.exists():
-			try:
-				with settings_config_path.open("r", encoding="utf-8") as file:
-					data = json.load(file)
-			except json.JSONDecodeError:
-				new_data = FileSettingsStructure(
-					data=SettingsStructure(),
-					version=1
-				)
-				self._save_config(settings_config_path, new_data.model_dump())
-				return
-
-			if isinstance(data, dict):
-				if data.get("version") is None:
-					new_data = FileSettingsStructure(
-						data=SettingsStructure(
-							user_gid=data.get("user_gid", 1),
-							button_style=ButtonStyle(**data.get("button_style", {})),
-							visible_buttons=data.get("visible_buttons", default_visible_buttons()),
-							default_reasons=data.get("default_reasons", default_default_reasons()),
-							auto_send=AutoSendStructure(**data.get("auto_send", {}))
-						),
-						version=1
-					)
-					self._save_config(settings_config_path, new_data.model_dump())
-			else:
-				new_data = FileSettingsStructure(
-					data=SettingsStructure(),
-					version=1
-				)
-				self._save_config(settings_config_path, new_data.model_dump())
-		else:
-			new_data = FileSettingsStructure(
-				data=SettingsStructure(),
-				version=1
-			)
-			self._save_config(settings_config_path, new_data.model_dump())
-
-	def validate_click_data(self) -> None:
-		"""
-		Validate click data configuration file.
-		"""
-		click_data_path = self.configs_path / "click_data.json"
-		if click_data_path.exists():
-			try:
-				with click_data_path.open("r", encoding="utf-8") as file:
-					data = json.load(file)
-			except json.JSONDecodeError:
-				new_data = ClickDataStructure()
-				self._save_config(click_data_path, new_data.model_dump())
-				return
-
-			if isinstance(data, dict):
-				if data.get("version") is None:
-					new_data = ClickDataStructure(data=data)
-					self._save_config(click_data_path, new_data.model_dump())
-			else:
-				new_data = ClickDataStructure()
-				self._save_config(click_data_path, new_data.model_dump())
-		else:
-			new_data = ClickDataStructure()
-			self._save_config(click_data_path, new_data.model_dump())
-
 	def _save_config(self, path: Path, data: dict) -> None:
-		"""
-		Save the configuration data to the given path.
-		"""
 		with path.open("w", encoding="utf-8") as file:
 			json.dump(data, file, ensure_ascii=False, indent=4)
 
@@ -467,7 +376,6 @@ class Configuration:
 				'crc32': calculate_crc32(file_path=file_path),
 				'data': data
 			}
-
 	@property
 	def resource_path(self) -> Path:
 		""" Get absolute path to resource for PyInstaller """
@@ -628,7 +536,7 @@ def get_commits_history(commits_count: int) -> list[dict]:
 					}
 				)
 		return data
-	except urllib.error.URLError:
+	except Exception:
 		return []
 
 def create_line(text: str | None = None, class_name: str | None = None) -> QLineEdit:

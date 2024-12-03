@@ -675,17 +675,22 @@ class ButtonsSettings(DraggableWidget):
 			item = layout.takeAt(0)
 			if item.widget():
 				item.widget().deleteLater()
-
+		is_violation = self.active_window == "violation"
 		for button_index, button_data in enumerate(buttons_dict):
 			column = button_index // 10
 			row = button_index % 10
+			button_data["row"] = row
+			button_data["column"] = column
 			button = MovableButton(
 				text=button_data["name"],
 				row=row,
 				column=column,
 				on_click_handler=self.handle_button_click,
-				data=button_data
+				data=button_data,
+				parent=self
 			)
+			if is_violation:
+				button.setObjectName(button_data["type"])
 			layout.addWidget(button, row, column)
 
 	def handle_violation_type_button_click(self):
@@ -723,6 +728,7 @@ class ButtonsSettings(DraggableWidget):
 		button_at_grid = item_at_grid.widget()
 		button_at_grid.data = button_dict
 		self.active_button.data = button_dict
+		self.active_button.setObjectName(violation_type)
 
 	def handle_line_edit(self):
 		if self.active_button is None or self.is_click_process:
@@ -758,7 +764,7 @@ class ButtonsSettings(DraggableWidget):
 		if self.active_window == "report":
 			self.button_edit_panel_description_edit.setPlainText(button.data["text"])
 		elif self.active_window == "violation":
-			self.button_edit_panel_violation_time_edit.setText(button.data["time"])
+			self.button_edit_panel_violation_time_edit.setText(str(button.data["time"]) if not isinstance(button.data["time"], str) else button.data["time"])
 			self.button_edit_panel_violation_reason_edit.setPlainText(button.data["reason"])
 
 			violation_type = button.data["type"]
@@ -794,17 +800,20 @@ class ButtonsSettings(DraggableWidget):
 		}.get(self.active_window)
 
 		if new_button_data and buttons_dict is not None:
-			buttons_dict.append(new_button_data)
 			button_count = len(buttons_dict)
 			column = (button_count - 1) // 10
 			row = (button_count - 1) % 10
+			new_button_data["column"] = column
+			new_button_data["row"] = row
+			buttons_dict.append(new_button_data)
 
 			new_button = MovableButton(
 				text=new_button_data["name"],
 				row=row,
 				column=column,
 				on_click_handler=self.handle_button_click,
-				data=new_button_data
+				data=new_button_data,
+				parent=self
 			)
 			current_grid_layout = self.get_current_grid_layout()
 			current_grid_layout.addWidget(new_button, row, column)
@@ -852,7 +861,8 @@ class ButtonsSettings(DraggableWidget):
 				row=row,
 				column=column,
 				on_click_handler=self.handle_button_click,
-				data=button_data
+				data=button_data,
+				parent=self
 			)
 			current_grid_layout.addWidget(button, row, column)
 

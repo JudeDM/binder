@@ -1,13 +1,14 @@
 from PyQt6.QtCore import (QMimeData, QPointF, QPropertyAnimation, Qt,
-                          pyqtProperty)
+						  pyqtProperty)
 from PyQt6.QtGui import (QColor, QCursor, QDrag, QDragEnterEvent, QDropEvent,
-                         QMouseEvent, QPainter, QPen, QPixmap)
+						 QMouseEvent, QPainter, QPen, QPixmap)
 from PyQt6.QtWidgets import QPushButton
 
 
 class MovableButton(QPushButton):
 	def __init__(self, text, on_click_handler, row: int, column: int, data=None, parent=None):
-		super().__init__(text, parent)
+		super().__init__(text)
+		self.parent = parent
 		self.setAcceptDrops(True)
 		self.row, self.column = row, column
 		self.on_click_handler = on_click_handler
@@ -91,6 +92,20 @@ class MovableButton(QPushButton):
 
 	def paintEvent(self, event):
 		super().paintEvent(event)
+
+		icon_name = self.objectName()
+		if icon_name in ['prison', 'ban', 'mute']:
+			icon_path = f"data/icons/{icon_name}.svg"
+			print(icon_path)
+			icon = QPixmap(icon_path)
+			if not icon.isNull():
+				icon = icon.scaled(16, 16, Qt.AspectRatioMode.KeepAspectRatio)
+				icon_rect = icon.rect()
+				icon_rect.moveTo(self.width() - icon_rect.width() - 10, (self.height() - icon_rect.height()) // 2)
+				painter = QPainter(self)
+				painter.drawPixmap(icon_rect, icon)
+				painter.end()
+
 		if self._dot_opacity > 0:
 			painter = QPainter(self)
 			painter.setRenderHint(QPainter.RenderHint.Antialiasing)
@@ -111,6 +126,7 @@ class MovableButton(QPushButton):
 				painter.drawEllipse(int(x2), int(y), dot_radius * 2, dot_radius * 2)
 			painter.end()
 
+
 	def dragEnterEvent(self, event: QDragEnterEvent) -> None:
 		if event.mimeData().hasText():
 			self.setStyleSheet("border: 2px solid #FF7A2F;")
@@ -127,8 +143,27 @@ class MovableButton(QPushButton):
 		self.setStyleSheet("")
 
 	def _swap_button_data(self, source_button: 'MovableButton') -> None:
+		from settings import ButtonsSettings
+
 		source_text, source_handler = source_button.text(), source_button.on_click_handler
 		source_button.setText(self.text())
 		self.setText(source_text)
 		self.on_click_handler = source_handler
 		self.data, source_button.data = source_button.data, self.data
+
+		source_object_name = source_button.objectName()
+		source_button.setObjectName(self.objectName())
+		self.setObjectName(source_object_name)
+
+		if isinstance(self.parent, ButtonsSettings):
+			buttons_dict = self.parent.teleports_config if self.parent.active_window == "teleport" else self.parent.reports_config if self.parent.active_window == "report" else self.parent.violations_config
+			source_button_index = next((i for i, btn in enumerate(buttons_dict) if btn["name"] == source_button.text()), None)
+			target_button_index = next((i for i, btn in enumerate(buttons_dict) if btn["name"] == self.text()), None)
+
+			if source_button_index is not None and target_button_index is not None:
+				buttons_dict[source_button_index], buttons_dict[target_button_index] = buttons_dict[target_button_index], buttons_dict[source_button_index]
+
+				source_button_data = buttons_dict[source_button_index]
+				target_button_data = buttons_dict[target_button_index]
+				source_button_data["row"], target_button_data["row"] = target_button_data["row"], source_button_data["row"]
+				source_button_data["column"], target_button_data["column"] = target_button_data["column"], source_button_data["column"]
