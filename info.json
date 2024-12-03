@@ -14,9 +14,9 @@
 		"data/icons/visibility_on.svg": "35b6359d6913006b59cb49f485f35c92",
 		"data/icons/checkbox_checked.svg": "b32920d09f2fbd4ddabed50d2de79204",
 		"data/icons/checkbox_unchecked.svg": "da32d2cdc9c74a32661734005126afc1",
-		"data/icons/tooltip.svg": "bafcac4d5743874c289c166c8904dc1b"
-		"data/icons/mute.svg": "68ac97e41701cd1876299a4c0c109c24"
-		"data/icons/prison.svg": "ce3727c7586ede58c3a57723027b2ad6"
+		"data/icons/tooltip.svg": "bafcac4d5743874c289c166c8904dc1b",
+		"data/icons/mute.svg": "68ac97e41701cd1876299a4c0c109c24",
+		"data/icons/prison.svg": "ce3727c7586ede58c3a57723027b2ad6",
 		"data/icons/ban.svg": "e56cd52028cbd2d39b0a893aa23e4235"
 	},
 	"files": [
