@@ -1,7 +1,7 @@
 from PyQt6.QtCore import (QMimeData, QPointF, QPropertyAnimation, Qt,
-						  pyqtProperty)
+                          pyqtProperty)
 from PyQt6.QtGui import (QColor, QCursor, QDrag, QDragEnterEvent, QDropEvent,
-						 QMouseEvent, QPainter, QPen, QPixmap)
+                         QMouseEvent, QPainter, QPen, QPixmap)
 from PyQt6.QtWidgets import QPushButton
 
 
@@ -96,7 +96,6 @@ class MovableButton(QPushButton):
 		icon_name = self.objectName()
 		if icon_name in ['prison', 'ban', 'mute']:
 			icon_path = f"data/icons/{icon_name}.svg"
-			print(icon_path)
 			icon = QPixmap(icon_path)
 			if not icon.isNull():
 				icon = icon.scaled(16, 16, Qt.AspectRatioMode.KeepAspectRatio)

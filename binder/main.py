@@ -1,4 +1,5 @@
 import sys
+
 import psutil
 from app import MainApp
 from coordinate_updater import CoordinateUpdater
@@ -9,7 +10,7 @@ from utils import configuration, parse_stylesheet
 
 if __name__ == '__main__':
     process = psutil.Process()
-    process.nice(psutil.BELOW_NORMAL_PRIORITY_CLASS)
+    process.nice(psutil.ABOVE_NORMAL_PRIORITY_CLASS)
 
     setup_excepthook()
     global app

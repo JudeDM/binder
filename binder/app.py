@@ -248,7 +248,6 @@ class MainApp(DraggableWidget):
 		config_data.user_gid = int(self.id_edit.text())
 		data = utils.SettingsStructure(**config_data.model_dump())
 		show_notification(parent=self, text="Данные успешно сохранены!")
-		# show_notification(parent=self, text="Data saved successfully!")
 		configuration.save_config("settings", data.model_dump())
 
 	def closeEvent(self, event):

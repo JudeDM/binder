@@ -19,14 +19,14 @@ from pydantic import BaseModel, Field, ValidationError
 from PyQt6.QtCore import QMargins, QSize, Qt
 from PyQt6.QtGui import QColor, QFont, QIcon, QMouseEvent, QPixmap
 from PyQt6.QtWidgets import (QHBoxLayout, QLabel, QLineEdit, QPushButton,
-							 QScrollArea, QWidget)
+                             QScrollArea, QWidget)
 from pyqttoast import (Toast, ToastButtonAlignment, ToastIcon, ToastPosition,
-					   ToastPreset)
+                       ToastPreset)
 
 __location__ = os.getcwd()
 
 DATE_FORMAT = "%d.%m.%Y"
-ADDIDIONAL_BUTTONS = {
+ADDITIONAL_BUTTONS = {
 	"prison": "punish",
 	"mute": "punish",
 	"ban": "punish",
@@ -559,6 +559,7 @@ def create_label(text: str | None = None, class_name: str | None = None, alignme
 	if word_wrap:
 		label.setWordWrap(True)
 	return label
+
 
 def create_button(on_click=None, text=None, icon_name=None, class_name=None):
 	button = QPushButton(text or "")

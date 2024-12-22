@@ -7,7 +7,7 @@ from PyQt6.QtWidgets import (QAbstractItemView, QApplication, QCheckBox,
                              QTableWidget, QVBoxLayout, QWidget)
 from pyqt_advanced_slider import Slider
 from pyqttoast import ToastPreset
-from utils import (ADDIDIONAL_BUTTONS, DraggableWidget, HorizontalScrollArea,
+from utils import (ADDITIONAL_BUTTONS, DraggableWidget, HorizontalScrollArea,
                    configuration, create_button, create_header_layout,
                    create_label, create_line, parse_stylesheet, replacements,
                    show_notification)
@@ -57,7 +57,7 @@ class ConfigSettingsWindow(DraggableWidget):
 		self.main_layout.addLayout(titles_layout)
 		for button_name in reversed(self.visible_buttons):
 			self.add_button_row(button_name=button_name, layout=self.preview_buttons_layout, controls=self.visible_buttons_controls)
-		for button_name in [button for button in ADDIDIONAL_BUTTONS.keys() if button not in self.visible_buttons]:
+		for button_name in [button for button in ADDITIONAL_BUTTONS.keys() if button not in self.visible_buttons]:
 			self.add_button_row(button_name=button_name, layout=self.available_buttons_layout, controls=self.available_buttons_controls)
 
 		self.preview_buttons_layout.setContentsMargins(10, 0, 20, 0)
@@ -611,7 +611,7 @@ class ButtonsSettings(DraggableWidget):
 
 		scroll_widget.setLayout(self.main_scroll_layout)
 		scroll_area.setWidget(scroll_widget)
-		scroll_area.setMaximumWidth(800)
+		scroll_area.setMaximumWidth(810)
 
 		middle_layout.addWidget(scroll_area)
 
@@ -679,8 +679,8 @@ class ButtonsSettings(DraggableWidget):
 		for button_index, button_data in enumerate(buttons_dict):
 			column = button_index // 10
 			row = button_index % 10
-			button_data["row"] = row
 			button_data["column"] = column
+			button_data["row"] = row
 			button = MovableButton(
 				text=button_data["name"],
 				row=row,

@@ -2,16 +2,17 @@ import time
 import webbrowser
 
 import binder_utils
+import keyboard
+import pyperclip
 from coordinate_updater import CoordinateUpdater
 from PyQt6.QtCore import QObject, QSize, Qt, QThread, pyqtSignal
 from PyQt6.QtWidgets import QHBoxLayout, QScrollArea, QVBoxLayout, QWidget
 from pyqttoast import ToastPreset
-from utils import (ADDIDIONAL_BUTTONS, DraggableWidget, Mouse,configuration,
+from utils import (ADDITIONAL_BUTTONS, DraggableWidget, Mouse, configuration,
                    create_button, create_header_layout, create_label,
                    create_line, get_commits_history, get_reports_count,
                    get_reports_info, show_notification)
-import keyboard
-import pyperclip
+
 mouse = Mouse()
 
 class UpdateHistoryWorker(QObject):
@@ -34,7 +35,7 @@ class GTAModal(QWidget):
 		super().__init__()
 		self.coordinate_updater = coordinate_updater
 		self.command_name = command_name
-		self.modal_type = ADDIDIONAL_BUTTONS[command_name]
+		self.modal_type = ADDITIONAL_BUTTONS[command_name]
 		self.time = time
 		self.reason = reason
 		self.setup_coordinates()
