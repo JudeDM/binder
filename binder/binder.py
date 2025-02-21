@@ -1,7 +1,7 @@
 import time
 from datetime import datetime
 from functools import partial
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Union
 
 import binder_utils
 import keyboard
@@ -10,10 +10,10 @@ from coordinate_updater import CoordinateUpdater
 from dialogs import GTAModal
 from PyQt6.QtCore import QObject, Qt, QThread, pyqtSignal
 from PyQt6.QtWidgets import (QGridLayout, QHBoxLayout, QLayout, QPushButton,
-                             QScrollArea, QVBoxLayout, QWidget)
+							 QScrollArea, QVBoxLayout, QWidget)
 from utils import (ADDITIONAL_BUTTONS, DATE_FORMAT, HorizontalScrollArea,
-                   Mouse, configuration, create_button, create_label,
-                   get_reports_count, get_tabs_state)
+				   Mouse, configuration, create_button, create_label,
+				   get_reports_count, get_tabs_state)
 
 if TYPE_CHECKING:
 	from app import MainApp
@@ -29,7 +29,7 @@ class TabInfo:
 
 
 class WorkerSignals(QObject):
-	clear_layout = pyqtSignal(QGridLayout)
+	clear_layout = pyqtSignal(object)
 	init_violations_ui = pyqtSignal()
 	init_reports_ui = pyqtSignal()
 	init_teleport_ui = pyqtSignal()
@@ -107,8 +107,6 @@ class Worker(QObject):
 
 
 class Binder(QWidget):
-	report_labels_text = ["день:", "неделю:", "месяц:"]
-
 	def __init__(self, coordinate_updater: CoordinateUpdater, app: 'MainApp'):
 		super().__init__()
 		self.app = app
@@ -275,25 +273,32 @@ class Binder(QWidget):
 		self.reports_counter = QVBoxLayout()
 		self.reports_counter.setSpacing(5)
 
-		title = create_label(text="Репортов за:", class_name="admin-label")
+		title = create_label(text="Репортов (д | н | м):", class_name="admin-label")
 		title.setAlignment(Qt.AlignmentFlag.AlignBottom | Qt.AlignmentFlag.AlignHCenter)
+		self.report_counts = create_label(text="0 | 0 | 0", class_name="admin-label")
+		self.report_counts.setAlignment(Qt.AlignmentFlag.AlignTop | Qt.AlignmentFlag.AlignHCenter)
 		self.reports_counter.addWidget(title)
-
-		for label_text in self.report_labels_text:
-			label = create_label(text=label_text, class_name="admin-label")
-			label.setAlignment(Qt.AlignmentFlag.AlignTop | Qt.AlignmentFlag.AlignHCenter)
-			self.reports_counter.addWidget(label)
-			self.report_labels.append(label)
-
+		self.reports_counter.addWidget(self.report_counts)
 		self.additional_layout.addLayout(self.reports_counter)
 		self.update_report_labels()
 
 	def init_sync_buttons(self):
-		buttons_box = QVBoxLayout()
-		buttons_box.setAlignment(Qt.AlignmentFlag.AlignRight)
-		buttons_box.setSpacing(5)
+		buttons_columns = QHBoxLayout()
+		buttons_box = None
+		buttons_columns.setAlignment(Qt.AlignmentFlag.AlignRight)
+		buttons_columns.setSpacing(5)
 
-		for button_name in configuration.settings_config.visible_buttons:
+		buttons_per_row = 8
+
+		visible_buttons = configuration.settings_config.visible_buttons
+
+		for index, button_name in enumerate(visible_buttons):
+			if index % buttons_per_row == 0:
+				buttons_box = QVBoxLayout()
+				buttons_box.setSpacing(5)
+				buttons_box.setAlignment(Qt.AlignmentFlag.AlignTop)
+				buttons_columns.addLayout(buttons_box)
+
 			button = create_button(
 				on_click=partial(self.handle_additional_button_click, None),
 				text=button_name,
@@ -301,7 +306,11 @@ class Binder(QWidget):
 			)
 			buttons_box.addWidget(button)
 
-		self.additional_layout.addLayout(buttons_box)
+		self.additional_layout.addLayout(buttons_columns)
+
+
+
+
 
 	def handle_report_button_click(self, button_type: str | None = None):
 		text_to_copy = (
@@ -316,7 +325,7 @@ class Binder(QWidget):
 		y_position = self.top + 345 if start_date <= now < end_date else self.top + 330
 		self.mouse.click((self.left + 245, y_position))
 		pyperclip.copy(text_to_copy)
-		pyperclip.copy(text_to_copy)  # На всякий
+		pyperclip.copy(text_to_copy)  # На всякий случай
 		keyboard.send("ctrl+v")
 
 		if configuration.settings_config.auto_send.reports:
@@ -374,6 +383,12 @@ class Binder(QWidget):
 					command_name=button_name,
 					reason=configuration.settings_config.default_reasons.uncuff,
 				)
+			case "mute_report":
+				self.gta_modal = GTAModal(
+					coordinate_updater=self.coordinate_updater,
+					command_name=button_name,
+					reason=configuration.settings_config.default_reasons.mute_report,
+				)
 			case "force_rename":
 				self.gta_modal = GTAModal(
 					coordinate_updater=self.coordinate_updater,
@@ -399,7 +414,7 @@ class Binder(QWidget):
 			self.mouse.move(position)
 
 	@classmethod
-	def clear_layout(cls, layout_or_widget: QLayout | HorizontalScrollArea):
+	def clear_layout(cls, layout_or_widget: Union[QLayout, HorizontalScrollArea]):
 		if isinstance(layout_or_widget, HorizontalScrollArea):
 			widget = layout_or_widget.widget()
 			if widget:
@@ -422,13 +437,7 @@ class Binder(QWidget):
 
 	def update_report_labels(self):
 		daily, weekly, monthly, _ = get_reports_count()
-		counts = [daily, weekly, monthly]
-		for label, count in zip(self.report_labels[-3:], counts):
-			try:
-				base_text = label.text().split(":")[0]
-				label.setText(f"{base_text}: {count}")
-			except RuntimeError:
-				pass
+		self.report_counts.setText(f"{daily} | {weekly} | {monthly}")
 
 	def update_click_data(self):
 		today_date = datetime.now().strftime(DATE_FORMAT)

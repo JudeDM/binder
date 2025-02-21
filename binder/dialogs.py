@@ -52,6 +52,7 @@ class GTAModal(QWidget):
 			"punish": self.punish_command,
 			"simple": self.simple_command,
 			"uncuff": self.middle_command,
+			"mute_report": self.middle_command,
 			"force_rename": self.middle_command,
 			"car_sync": self.car_sync,
 		}
@@ -98,7 +99,7 @@ class GTAModal(QWidget):
 			middle_layout.addWidget(reason_label)
 			middle_layout.addWidget(self.reason_edit)
 
-		elif self.modal_type in {"uncuff", "force_rename"}:
+		elif self.modal_type in {"uncuff", "mute_report", "force_rename"}:
 			reason_label, self.reason_edit = create_label("Причина:"), create_line(text=self.reason)
 			middle_layout.addWidget(reason_label)
 			middle_layout.addWidget(self.reason_edit)

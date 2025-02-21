@@ -17,7 +17,7 @@ from pathlib import Path
 import sslcrypto
 from pydantic import BaseModel, Field, ValidationError
 from PyQt6.QtCore import QMargins, QSize, Qt
-from PyQt6.QtGui import QColor, QFont, QIcon, QMouseEvent, QPixmap
+from PyQt6.QtGui import QColor, QFont, QIcon, QMouseEvent, QPixmap, QCursor
 from PyQt6.QtWidgets import (QHBoxLayout, QLabel, QLineEdit, QPushButton,
                              QScrollArea, QWidget)
 from pyqttoast import (Toast, ToastButtonAlignment, ToastIcon, ToastPosition,
@@ -34,12 +34,13 @@ ADDITIONAL_BUTTONS = {
 	"dimension_sync": "fast",
 	"car_sync": "car_sync",
 	"uo_delete": "simple",
+	"veh_repair": "simple",
 	"marketplace_stash": "simple",
 	"tpcar": "simple",
 	"dped_tp": "simple",
 	"uncuff": "uncuff",
+	"mute_report": "mute_report",
 	"force_rename": "force_rename",
-	"veh_repair": "simple",
 }
 
 cached_files = {}
@@ -230,13 +231,12 @@ def calculate_crc32(file_path: str) -> str:
 def default_visible_buttons():
 	return ["dimension_sync", "car_sync", "uncuff", "reof"]
 
-def default_default_reasons():
-	return {"uncuff": "Поблизости никого нет"}
 
 # Data Models
 class DefaultReasons(BaseModel):
 	uncuff: str = Field(default="Поблизости никого нет")
 	force_rename: str = Field(default="2.7 правил проекта")
+	mute_report: str = Field(default="Флуд")
 
 class ButtonStyle(BaseModel):
 	size: list[int] = Field(default_factory=lambda: [153, 33])
@@ -563,6 +563,7 @@ def create_label(text: str | None = None, class_name: str | None = None, alignme
 
 def create_button(on_click=None, text=None, icon_name=None, class_name=None):
 	button = QPushButton(text or "")
+	button.setCursor(QCursor(Qt.CursorShape.PointingHandCursor))
 	if on_click:
 		button.clicked.connect(on_click)
 	if icon_name:
@@ -586,23 +587,28 @@ def parse_stylesheet() -> str:
 	style = style.replace("%admin-button-width%", str(configuration.settings_config.button_style.width))
 	return style
 
+
 def check_update():
-	urllib.request.urlcleanup()
-	try:
-		response = urllib.request.urlopen(url="https://raw.githubusercontent.com/JudeDM/binder/main/info.json", timeout=5)
-	except urllib.error.URLError:
-		return
-	data = json.loads(response.read().decode())
-	mismatched_files = [fp for fp, exp_hash in data["hashes"].items() if calculate_md5(fp) != exp_hash]
-	if mismatched_files:
-		config_data = configuration.settings_config
-		config_data.show_update_info = True
-		configuration.save_config(config_name="settings", data=config_data.model_dump())
-		updater_path = os.path.join(os.getcwd(), "..", "updater.exe")
-		if not os.path.exists(updater_path):
-			url = "https://github.com/JudeDM/binder/raw/main/updater.exe"
-			urllib.request.urlretrieve(url, updater_path)
-		subprocess.run(["taskkill", "/F", "/PID", str(os.getpid()), "&", "start", "cmd", "/c", updater_path], cwd=os.path.dirname(updater_path), shell=True)
+    urllib.request.urlcleanup()
+    try:
+        response = urllib.request.urlopen(url="https://raw.githubusercontent.com/JudeDM/binder/main/info.json", timeout=5)
+    except Exception:
+        return
+    data = json.loads(response.read().decode())
+    mismatched_files = [fp for fp, exp_hash in data["hashes"].items() if calculate_md5(fp) != exp_hash]
+    if mismatched_files:
+        config_data = configuration.settings_config
+        config_data.show_update_info = True
+        configuration.save_config(config_name="settings", data=config_data.model_dump())
+        updater_path = os.path.join(os.getcwd(), "..", "updater.exe")
+        if not os.path.exists(updater_path):
+            url = "https://github.com/JudeDM/binder/raw/main/updater.exe"
+            urllib.request.urlretrieve(url, updater_path)
+
+        subprocess.Popen([updater_path], cwd=os.path.dirname(updater_path), shell=True)
+
+        current_pid = os.getpid()
+        subprocess.run(["taskkill", "/F", "/PID", str(current_pid)], shell=True)
 
 
 

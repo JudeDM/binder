@@ -78,6 +78,7 @@ class ConfigSettingsWindow(DraggableWidget):
 		button_row.addWidget(button)
 		button_row.addLayout(control_layout)
 		button_row.setSpacing(10)
+		button_row.setAlignment(Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignTop)
 		return button_row
 
 	def clear_layout(self, layout: QLayout):
@@ -102,8 +103,6 @@ class ConfigSettingsWindow(DraggableWidget):
 		self.update_config()
 
 	def add_preview_item(self):
-		if self.count_non_spacer_items(self.preview_buttons_layout) >= 6:
-			return show_notification(parent=self, preset=ToastPreset.WARNING_DARK, text="Можно добавить до 6 кнопок!")
 		button = self.sender()
 		row_index = self.find_layout_index_containing_widget(self.available_buttons_layout, button)
 		button_name = self.get_button_name_by_index(self.available_buttons_layout, row_index)
@@ -217,6 +216,7 @@ class ConfigSettingsWindow(DraggableWidget):
 		item_control_buttons.setSpacing(5)
 		return item_control_buttons
 
+
 	def update_spacer_item(self):
 		preview_count = self.count_non_spacer_items(self.preview_buttons_layout)
 		available_count = self.count_non_spacer_items(self.available_buttons_layout)
@@ -231,14 +231,19 @@ class ConfigSettingsWindow(DraggableWidget):
 		uncuff_reason_label = create_label("Причина uncuff:")
 		self.uncuff_edit = create_line(text=configuration.settings_config.default_reasons.uncuff)
 		self.uncuff_edit.textChanged.connect(self.line_edit_text_changed)
+		mute_report_reason_label = create_label("Причина mute_report:")
+		self.mute_report_edit = create_line(text=configuration.settings_config.default_reasons.mute_report)
+		self.mute_report_edit.textChanged.connect(self.line_edit_text_changed)
 		force_rename_reason_label = create_label("Причина force_rename:")
 		force_rename_edit = create_line(text=configuration.settings_config.default_reasons.force_rename)
 		force_rename_edit.textChanged.connect(self.line_edit_text_changed)
 
 		labels_layout.addWidget(uncuff_reason_label)
 		labels_layout.addWidget(force_rename_reason_label)
+		labels_layout.addWidget(mute_report_reason_label)
 		edits_layout.addWidget(self.uncuff_edit)
 		edits_layout.addWidget(force_rename_edit)
+		edits_layout.addWidget(self.mute_report_edit)
 
 		variables_box.addLayout(labels_layout)
 		variables_box.addLayout(edits_layout)
@@ -313,7 +318,9 @@ class ConfigSettingsWindow(DraggableWidget):
 		config_data = configuration.settings_config
 		if self.sender() == self.uncuff_edit:
 			config_data.default_reasons.uncuff = value
-		else:
+		elif self.sender() == self.mute_report_edit:
+			config_data.default_reasons.mute_report = value
+		elif self.sender() == self.force_rename_edit:
 			config_data.default_reasons.force_rename = value
 		configuration.save_config(config_name="settings", data=config_data.model_dump())
 
