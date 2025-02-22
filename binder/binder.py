@@ -100,7 +100,7 @@ class Worker(QObject):
 						self.signals.clear_layout.emit(layout)
 					self.ui_states[tab_info.is_ui] = False
 
-			time.sleep(0.22)
+			time.sleep(0.2)
 
 	def stop(self):
 		self._running = False
@@ -447,6 +447,11 @@ class Binder(QWidget):
 		self.update_report_labels()
 
 	def closeEvent(self, event):
+		self.worker.signals.clear_layout.disconnect()
+		self.worker.signals.init_violations_ui.disconnect()
+		self.worker.signals.init_reports_ui.disconnect()
+		self.worker.signals.init_teleport_ui.disconnect()
+		self.worker.signals.init_additional_ui.disconnect()
 		self.worker.stop()
 		self.thread.quit()
 		self.thread.wait()

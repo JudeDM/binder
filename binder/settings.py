@@ -235,14 +235,14 @@ class ConfigSettingsWindow(DraggableWidget):
 		self.mute_report_edit = create_line(text=configuration.settings_config.default_reasons.mute_report)
 		self.mute_report_edit.textChanged.connect(self.line_edit_text_changed)
 		force_rename_reason_label = create_label("Причина force_rename:")
-		force_rename_edit = create_line(text=configuration.settings_config.default_reasons.force_rename)
-		force_rename_edit.textChanged.connect(self.line_edit_text_changed)
+		self.force_rename_edit = create_line(text=configuration.settings_config.default_reasons.force_rename)
+		self.force_rename_edit.textChanged.connect(self.line_edit_text_changed)
 
 		labels_layout.addWidget(uncuff_reason_label)
 		labels_layout.addWidget(force_rename_reason_label)
 		labels_layout.addWidget(mute_report_reason_label)
 		edits_layout.addWidget(self.uncuff_edit)
-		edits_layout.addWidget(force_rename_edit)
+		edits_layout.addWidget(self.force_rename_edit)
 		edits_layout.addWidget(self.mute_report_edit)
 
 		variables_box.addLayout(labels_layout)

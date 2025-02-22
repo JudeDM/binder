@@ -18,12 +18,14 @@ def my_excepthook(type, value, tback):
 		error_message = "На устройстве не осталось свободного места!"
 	elif isinstance(value, URLError):
 		error_message = f"Ошибка сети: {value.reason}"""
+	elif isinstance(value, RuntimeError) and "wrapped C/C++ object of type" in str(value):
+		return
 	else:
 		custom_message = str(value) if str(value) else formatted_tb
 		error_message = f"{custom_message}\n\n{formatted_tb}"
 
 	show_notification(
-		title="Произошла ошибка!",
+		title="Произошла ошибка! Обратитесь в дискорд: dmitriy_win",
 		duration=0,
 		preset=ToastPreset.ERROR_DARK,
 		text=error_message,
